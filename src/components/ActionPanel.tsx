@@ -2,12 +2,13 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Clock, CreditCard, LogOut, Plus, Ticket } from "lucide-react";
+import { Clock, CreditCard, LogOut, Plus, Ticket, Trash2 } from "lucide-react";
 
 interface ActionPanelProps {
   onCreateTicket?: () => void;
   onProcessPayment?: () => void;
   onEndParking?: () => void;
+  onEmptyParking?: () => void;
   parkingStats?: {
     totalSpaces: number;
     availableSpaces: number;
@@ -19,6 +20,7 @@ const ActionPanel = ({
   onCreateTicket = () => {},
   onProcessPayment = () => {},
   onEndParking = () => {},
+  onEmptyParking = () => {},
   parkingStats = {
     totalSpaces: 50,
     availableSpaces: 30,
@@ -81,6 +83,15 @@ const ActionPanel = ({
         >
           <LogOut className="mr-2 h-4 w-4" />
           Finalizar Estacionamiento
+        </Button>
+
+        <Button
+          className="w-full justify-start"
+          onClick={onEmptyParking}
+          variant="destructive"
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
+          Vaciar Estacionamiento
         </Button>
       </div>
 

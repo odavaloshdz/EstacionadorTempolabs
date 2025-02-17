@@ -6,13 +6,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Car } from "lucide-react";
+import { Car, Bike, Truck, Bus } from "lucide-react";
 
 interface ParkingSpaceProps {
   spaceNumber?: string;
   isOccupied?: boolean;
   onClick?: () => void;
   className?: string;
+  vehicleType?: "auto" | "moto" | "camioneta" | "camion" | "van";
 }
 
 const ParkingSpace = ({
@@ -20,7 +21,23 @@ const ParkingSpace = ({
   isOccupied = false,
   onClick = () => {},
   className,
+  vehicleType = "auto",
 }: ParkingSpaceProps) => {
+  const getVehicleIcon = () => {
+    switch (vehicleType) {
+      case "moto":
+        return Bike;
+      case "camioneta":
+      case "van":
+        return Truck;
+      case "camion":
+        return Bus;
+      default:
+        return Car;
+    }
+  };
+
+  const VehicleIcon = getVehicleIcon();
   const status = isOccupied ? "Ocupado" : "Disponible";
   const statusColor = isOccupied ? "bg-red-100" : "bg-green-100";
   const borderColor = isOccupied ? "border-red-500" : "border-green-500";
@@ -31,7 +48,7 @@ const ParkingSpace = ({
         <TooltipTrigger asChild>
           <div
             className={cn(
-              "w-[80px] md:w-[100px] h-[120px] md:h-[150px] border-2 rounded-md p-2 cursor-pointer",
+              "w-[120px] md:w-[100px] h-[180px] md:h-[150px] border-2 rounded-md p-2 cursor-pointer",
               "transition-colors duration-200 ease-in-out",
               "flex flex-col items-center justify-between",
               statusColor,
@@ -43,7 +60,7 @@ const ParkingSpace = ({
             tabIndex={0}
           >
             <span className="text-sm font-semibold">{spaceNumber}</span>
-            <Car
+            <VehicleIcon
               className={cn(
                 "w-12 h-12",
                 isOccupied ? "text-red-500" : "text-green-500",

@@ -22,7 +22,7 @@ export default function Navbar() {
           </button>
           <div className="flex items-center">
             <Link to="/" className="text-xl font-bold text-primary">
-              ParkingPro
+              Estacionador
             </Link>
             <div className="hidden sm:ml-8 sm:flex sm:space-x-4">
               <Link

@@ -104,30 +104,69 @@ export type Database = {
       }
       parking_lot_settings: {
         Row: {
+          capacity_auto: number
+          capacity_camion: number
+          capacity_camioneta: number
+          capacity_moto: number
+          capacity_van: number
           created_at: string | null
           field_name: string
+          grid_columns: number
+          grid_rows: number
           id: string
           is_enabled: boolean | null
           is_required: boolean | null
           parking_lot_id: string | null
+          rate_auto: number
+          rate_camion: number
+          rate_camioneta: number
+          rate_moto: number
+          rate_van: number
+          total_spaces: number
           updated_at: string | null
         }
         Insert: {
+          capacity_auto?: number
+          capacity_camion?: number
+          capacity_camioneta?: number
+          capacity_moto?: number
+          capacity_van?: number
           created_at?: string | null
           field_name: string
+          grid_columns?: number
+          grid_rows?: number
           id?: string
           is_enabled?: boolean | null
           is_required?: boolean | null
           parking_lot_id?: string | null
+          rate_auto?: number
+          rate_camion?: number
+          rate_camioneta?: number
+          rate_moto?: number
+          rate_van?: number
+          total_spaces?: number
           updated_at?: string | null
         }
         Update: {
+          capacity_auto?: number
+          capacity_camion?: number
+          capacity_camioneta?: number
+          capacity_moto?: number
+          capacity_van?: number
           created_at?: string | null
           field_name?: string
+          grid_columns?: number
+          grid_rows?: number
           id?: string
           is_enabled?: boolean | null
           is_required?: boolean | null
           parking_lot_id?: string | null
+          rate_auto?: number
+          rate_camion?: number
+          rate_camioneta?: number
+          rate_moto?: number
+          rate_van?: number
+          total_spaces?: number
           updated_at?: string | null
         }
         Relationships: [
@@ -177,6 +216,115 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "parking_lots_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      parking_settings: {
+        Row: {
+          capacity_auto: number
+          capacity_camion: number
+          capacity_camioneta: number
+          capacity_moto: number
+          capacity_van: number
+          columns: number
+          company_id: string | null
+          created_at: string
+          id: string
+          name: string
+          rate_auto: number
+          rate_camion: number
+          rate_camioneta: number
+          rate_moto: number
+          rate_van: number
+          rows: number
+          total_spaces: number
+          updated_at: string
+        }
+        Insert: {
+          capacity_auto?: number
+          capacity_camion?: number
+          capacity_camioneta?: number
+          capacity_moto?: number
+          capacity_van?: number
+          columns?: number
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          rate_auto?: number
+          rate_camion?: number
+          rate_camioneta?: number
+          rate_moto?: number
+          rate_van?: number
+          rows?: number
+          total_spaces?: number
+          updated_at?: string
+        }
+        Update: {
+          capacity_auto?: number
+          capacity_camion?: number
+          capacity_camioneta?: number
+          capacity_moto?: number
+          capacity_van?: number
+          columns?: number
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          rate_auto?: number
+          rate_camion?: number
+          rate_camioneta?: number
+          rate_moto?: number
+          rate_van?: number
+          rows?: number
+          total_spaces?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parking_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      parking_spaces: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          id: string
+          is_occupied: boolean | null
+          space_number: string
+          updated_at: string
+          vehicle_type: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          is_occupied?: boolean | null
+          space_number: string
+          updated_at?: string
+          vehicle_type?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          is_occupied?: boolean | null
+          space_number?: string
+          updated_at?: string
+          vehicle_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parking_spaces_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,21 +10,33 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Clock, CreditCard, Car, Calendar } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Clock, CreditCard, Car, Calendar, Palette, Type } from "lucide-react";
+import { printTicket, printReceipt } from "@/lib/printService";
+import { useAuth } from "@/contexts/AuthContext";
+import type { TicketData, VehicleType } from "@/types/parking";
 
 interface TicketModalProps {
   open?: boolean;
   onClose?: () => void;
   isEntry?: boolean;
-  ticketData?: {
-    ticketNumber: string;
-    entryTime: string;
-    exitTime?: string;
-    duration?: string;
-    amount?: number;
-    licensePlate: string;
-  };
+  ticketData?: TicketData;
+  onSubmit?: (data: TicketData) => void;
 }
+
+const vehicleTypes: VehicleType[] = [
+  "auto",
+  "moto",
+  "camioneta",
+  "camion",
+  "van",
+];
 
 const TicketModal = ({
   open = true,
@@ -35,7 +47,48 @@ const TicketModal = ({
     entryTime: new Date().toLocaleString(),
     licensePlate: "ABC-123",
   },
+  onSubmit = () => {},
 }: TicketModalProps) => {
+  const { user } = useAuth();
+  const [formData, setFormData] = useState({
+    plate: ticketData?.licensePlate || "",
+    color: "",
+    model: "",
+    type: "auto" as VehicleType,
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const updatedTicketData = {
+      ...ticketData,
+      licensePlate: formData.plate,
+      vehicleInfo: {
+        plate: formData.plate,
+        color: formData.color || undefined,
+        model: formData.model || undefined,
+        type: formData.type,
+      },
+      createdBy: user?.email,
+    };
+
+    try {
+      // Primero actualizamos el estado y la base de datos
+      await onSubmit(updatedTicketData);
+
+      // Luego imprimimos el ticket
+      if (isEntry) {
+        await printTicket(updatedTicketData);
+      } else if (updatedTicketData.exitTime) {
+        await printReceipt(updatedTicketData);
+      }
+
+      // Cerramos el modal después de que todo esté listo
+      onClose();
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-[90vw] sm:max-w-[500px] bg-white">
@@ -77,20 +130,80 @@ const TicketModal = ({
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label>Placa</Label>
-                <div className="flex items-center space-x-2">
-                  <Car className="w-4 h-4 text-muted-foreground" />
-                  {isEntry ? (
-                    <Input
-                      placeholder="Ingrese la placa"
-                      defaultValue={ticketData.licensePlate}
-                    />
-                  ) : (
-                    <span className="text-sm">{ticketData.licensePlate}</span>
-                  )}
+              {isEntry ? (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Placa</Label>
+                    <div className="flex items-center space-x-2">
+                      <Car className="w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Ingrese la placa"
+                        value={formData.plate}
+                        onChange={(e) =>
+                          setFormData({ ...formData, plate: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Color (Opcional)</Label>
+                    <div className="flex items-center space-x-2">
+                      <Palette className="w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Color del vehículo"
+                        value={formData.color}
+                        onChange={(e) =>
+                          setFormData({ ...formData, color: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Modelo (Opcional)</Label>
+                    <div className="flex items-center space-x-2">
+                      <Type className="w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Modelo del vehículo"
+                        value={formData.model}
+                        onChange={(e) =>
+                          setFormData({ ...formData, model: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Tipo de Vehículo</Label>
+                    <Select
+                      value={formData.type}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, type: value as VehicleType })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {vehicleTypes.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type.charAt(0).toUpperCase() + type.slice(1)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>Placa</Label>
+                  <div className="flex items-center space-x-2">
+                    <Car className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">{ticketData.licensePlate}</span>
+                  </div>
+                </div>
+              )}
 
               {!isEntry && (
                 <>
@@ -123,7 +236,7 @@ const TicketModal = ({
           <Button variant="outline" onClick={onClose}>
             Cancelar
           </Button>
-          <Button onClick={onClose}>
+          <Button onClick={handleSubmit}>
             {isEntry ? "Crear Ticket" : "Procesar Pago"}
           </Button>
         </DialogFooter>
