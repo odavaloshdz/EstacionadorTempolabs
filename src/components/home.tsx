@@ -33,7 +33,8 @@ export default function Home() {
   const loadParkingSpaces = async () => {
     const { data: spaces, error } = await supabase
       .from("parking_spaces")
-      .select("*");
+      .select("*")
+      .order("space_number");
 
     if (error) {
       console.error("Error loading parking spaces:", error);
@@ -41,11 +42,16 @@ export default function Home() {
     }
 
     if (spaces) {
-      const formattedSpaces = spaces.map((space) => ({
-        id: space.space_number,
-        isOccupied: space.is_occupied,
-        vehicleType: space.vehicle_type,
-      }));
+      // Asegurarnos que los espacios se formateen correctamente
+      const formattedSpaces = spaces.map((space) => {
+        // Convertir explícitamente a booleano
+        const isOccupied = space.is_occupied;
+        return {
+          id: space.space_number,
+          isOccupied: isOccupied,
+          vehicleType: space.vehicle_type || "auto",
+        };
+      });
 
       const occupiedCount = formattedSpaces.filter((s) => s.isOccupied).length;
 
@@ -65,16 +71,17 @@ export default function Home() {
 
     const channel = supabase.channel("parking_spaces");
 
+    // Suscribirse a cambios en tiempo real
     channel
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "UPDATE",
           schema: "public",
           table: "parking_spaces",
         },
-        async () => {
-          await loadParkingSpaces();
+        () => {
+          loadParkingSpaces();
         },
       )
       .subscribe();
@@ -105,11 +112,13 @@ export default function Home() {
 
     try {
       if (isEntryTicket) {
+        // Primero actualizamos el espacio
         const { error: spaceError } = await supabase
           .from("parking_spaces")
           .update({
             is_occupied: true,
             vehicle_type: ticketData.vehicleInfo?.type || "auto",
+            updated_at: new Date().toISOString(),
           })
           .eq("space_number", selectedSpace);
 
@@ -129,11 +138,13 @@ export default function Home() {
 
         if (ticketError) throw ticketError;
       } else {
+        // Actualizamos el espacio a desocupado
         const { error: spaceError } = await supabase
           .from("parking_spaces")
           .update({
             is_occupied: false,
             vehicle_type: null,
+            updated_at: new Date().toISOString(),
           })
           .eq("space_number", selectedSpace);
 
@@ -164,7 +175,11 @@ export default function Home() {
     try {
       const { error } = await supabase
         .from("parking_spaces")
-        .update({ is_occupied: false, vehicle_type: null })
+        .update({
+          is_occupied: false,
+          vehicle_type: null,
+          updated_at: new Date().toISOString(),
+        })
         .neq("space_number", "");
 
       if (error) throw error;
