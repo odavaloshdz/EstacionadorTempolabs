@@ -11,6 +11,17 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Illuminate\Auth\MustVerifyEmail;
 
+/*
+|--------------------------------------------------------------------------
+| Web Routes
+|--------------------------------------------------------------------------
+|
+| Here is where you can register web routes for your application. These
+| routes are loaded by the RouteServiceProvider within a group which
+| contains the "web" middleware group. Now create something great!
+|
+*/
+
 Route::get('/', function () {
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
@@ -20,42 +31,31 @@ Route::get('/', function () {
     ]);
 });
 
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/dashboard', function () {
-        return Inertia::render('Dashboard');
-    })->name('dashboard');
+Route::get('/dashboard', function () {
+    return Inertia::render('Dashboard');
+})->middleware(['auth', 'verified'])->name('dashboard');
 
-    Route::get('/tickets', function () {
-        return Inertia::render('Tickets/Index');
-    })->name('tickets.index');
-
-    Route::get('/profile', function () {
-        return Inertia::render('Profile/Edit', [
-            'mustVerifyEmail' => auth()->user() instanceof MustVerifyEmail,
-            'status' => session('status'),
-        ]);
-    })->name('profile.edit');
-
+Route::middleware('auth')->group(function () {
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-// Rutas para el superadmin
-Route::middleware(['auth', 'superadmin'])->prefix('superadmin')->name('superadmin.')->group(function () {
+// SuperAdmin Routes
+Route::middleware(['auth', 'role:super_admin'])->prefix('superadmin')->name('superadmin.')->group(function () {
+    // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
-    // Gestión de empresas
+    // Companies
     Route::resource('companies', CompanyController::class);
     
-    // Gestión de suscripciones
-    Route::get('/subscriptions', [SubscriptionController::class, 'index'])->name('subscriptions.index');
-    Route::get('/subscriptions/create', [SubscriptionController::class, 'create'])->name('subscriptions.create');
-    Route::post('/subscriptions', [SubscriptionController::class, 'store'])->name('subscriptions.store');
-    Route::get('/subscriptions/{company}', [SubscriptionController::class, 'show'])->name('subscriptions.show');
-    Route::get('/subscriptions/{company}/edit', [SubscriptionController::class, 'edit'])->name('subscriptions.edit');
-    Route::put('/subscriptions/{company}', [SubscriptionController::class, 'update'])->name('subscriptions.update');
+    // Subscription Plans
+    Route::resource('subscription-plans', SubscriptionPlanController::class);
     
-    // Gestión de usuarios superadmin
+    // Subscriptions
+    Route::resource('subscriptions', SubscriptionController::class);
+    
+    // SuperAdmin Users
     Route::resource('users', UserController::class);
 });
 
