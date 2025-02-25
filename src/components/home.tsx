@@ -5,10 +5,12 @@ import TicketModal from "./TicketModal";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 
+import { VehicleType } from "@/types/parking";
+
 interface ParkingSpace {
   id: string;
   isOccupied: boolean;
-  vehicleType?: "auto" | "moto" | "camioneta" | "camion" | "van";
+  vehicleType?: VehicleType;
 }
 
 interface ParkingData {

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import UserTable from "@/components/users/UserTable";
 import UserForm, { UserFormData } from "@/components/users/UserForm";
-import { UserProfile } from "@/types/auth";
+import { UserProfile, UserRole } from "@/types/auth";
 import { supabase } from "@/lib/supabase";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -40,13 +40,13 @@ export default function UsersPage() {
       if (authError) throw authError;
 
       // Combine profile and auth data
-      const usersWithEmail = (profiles || []).map((profile: any) => {
-        const authUser = authData?.users?.find((u) => u.id === profile.id);
+      const usersWithEmail = (profiles || []).map((profile) => {
+        const authUser = authData.users.find((u: any) => u.id === profile.id);
         return {
           id: profile.id,
           first_name: profile.first_name,
           last_name: profile.last_name,
-          role: profile.role as UserRole,
+          role: (profile.role || "employee") as UserRole,
           is_active: profile.is_active,
           created_at: profile.created_at,
           updated_at: profile.updated_at,

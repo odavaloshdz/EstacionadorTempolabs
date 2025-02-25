@@ -72,7 +72,7 @@ export default function UserTable({
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge variant={user.is_active ? "success" : "destructive"}>
+                  <Badge variant={user.is_active ? "default" : "destructive"}>
                     {user.is_active ? "Activo" : "Inactivo"}
                   </Badge>
                 </TableCell>
