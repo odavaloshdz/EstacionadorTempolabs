@@ -8,6 +8,7 @@ import Home from "@/components/home";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import SettingsPage from "@/pages/SettingsPage";
 import UsersPage from "@/pages/UsersPage";
+import AdminTools from "@/pages/AdminTools";
 import SessionRecovery from "@/components/SessionRecovery";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -148,6 +149,16 @@ const AppRoutes = () => (
         <PrivateRoute>
           <DashboardLayout>
             <UsersPage />
+          </DashboardLayout>
+        </PrivateRoute>
+      }
+    />
+    <Route
+      path="/dashboard/admin-tools"
+      element={
+        <PrivateRoute>
+          <DashboardLayout>
+            <AdminTools />
           </DashboardLayout>
         </PrivateRoute>
       }

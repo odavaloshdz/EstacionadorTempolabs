@@ -15,9 +15,31 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { UserProfile, UserRole } from "@/types/auth";
+import { UserProfile, UserRole, ROLE_PERMISSIONS } from "@/types/auth";
+import { 
+  Shield, 
+  Briefcase, 
+  UserCircle, 
+  Info, 
+  CheckCircle2, 
+  XCircle,
+  AlertCircle
+} from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { 
+  Card, 
+  CardContent, 
+  CardDescription 
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 interface UserFormProps {
   open: boolean;
@@ -36,6 +58,31 @@ export interface UserFormData {
   password?: string;
 }
 
+// Role information for display
+const roleInfo = {
+  admin: {
+    title: "Administrador",
+    description: "Acceso completo a todas las funciones del sistema",
+    icon: Shield,
+    color: "text-red-500",
+    bgColor: "bg-red-100",
+  },
+  manager: {
+    title: "Gerente",
+    description: "Puede gestionar tickets y ver reportes",
+    icon: Briefcase,
+    color: "text-blue-500",
+    bgColor: "bg-blue-100",
+  },
+  employee: {
+    title: "Empleado",
+    description: "Puede gestionar tickets",
+    icon: UserCircle,
+    color: "text-green-500",
+    bgColor: "bg-green-100",
+  },
+};
+
 export default function UserForm({
   open,
   onClose,
@@ -46,7 +93,7 @@ export default function UserForm({
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
     watch,
     setValue,
   } = useForm<UserFormData>({
@@ -60,6 +107,8 @@ export default function UserForm({
     },
   });
 
+  const selectedRole = watch("role");
+
   const handleFormSubmit = async (data: UserFormData) => {
     try {
       await onSubmit(data);
@@ -69,32 +118,56 @@ export default function UserForm({
     }
   };
 
+  const RoleIcon = roleInfo[selectedRole].icon;
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? "Editar Usuario" : "Crear Nuevo Usuario"}
           </DialogTitle>
+          <DialogDescription>
+            {isEditing 
+              ? "Modifica la información del usuario y sus permisos" 
+              : "Completa la información para crear un nuevo usuario en el sistema"}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email" className="flex items-center gap-1">
+              Email
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-gray-400" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>El email será usado para iniciar sesión</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </Label>
             <Input
               id="email"
               type="email"
               disabled={isEditing}
+              placeholder="usuario@ejemplo.com"
               {...register("email", {
-                required: !isEditing,
+                required: !isEditing ? "El email es requerido" : false,
                 pattern: {
                   value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
                   message: "Email inválido",
                 },
               })}
+              className={errors.email ? "border-red-500" : ""}
             />
             {errors.email && (
-              <p className="text-sm text-red-500">{errors.email.message}</p>
+              <p className="text-sm text-red-500 flex items-center gap-1">
+                <AlertCircle className="h-4 w-4" />
+                {errors.email.message}
+              </p>
             )}
           </div>
 
@@ -103,16 +176,30 @@ export default function UserForm({
               <Label htmlFor="first_name">Nombre</Label>
               <Input
                 id="first_name"
-                {...register("first_name", { required: true })}
+                placeholder="Nombre"
+                {...register("first_name", { 
+                  required: "El nombre es requerido" 
+                })}
+                className={errors.first_name ? "border-red-500" : ""}
               />
+              {errors.first_name && (
+                <p className="text-sm text-red-500">{errors.first_name.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="last_name">Apellido</Label>
               <Input
                 id="last_name"
-                {...register("last_name", { required: true })}
+                placeholder="Apellido"
+                {...register("last_name", { 
+                  required: "El apellido es requerido" 
+                })}
+                className={errors.last_name ? "border-red-500" : ""}
               />
+              {errors.last_name && (
+                <p className="text-sm text-red-500">{errors.last_name.message}</p>
+              )}
             </div>
           </div>
 
@@ -122,14 +209,20 @@ export default function UserForm({
               <Input
                 id="password"
                 type="password"
+                placeholder="Mínimo 6 caracteres"
                 {...register("password", {
-                  required: !isEditing,
-                  minLength: 6,
+                  required: !isEditing ? "La contraseña es requerida" : false,
+                  minLength: {
+                    value: 6,
+                    message: "La contraseña debe tener al menos 6 caracteres"
+                  }
                 })}
+                className={errors.password ? "border-red-500" : ""}
               />
               {errors.password && (
-                <p className="text-sm text-red-500">
-                  La contraseña debe tener al menos 6 caracteres
+                <p className="text-sm text-red-500 flex items-center gap-1">
+                  <AlertCircle className="h-4 w-4" />
+                  {errors.password.message}
                 </p>
               )}
             </div>
@@ -138,19 +231,55 @@ export default function UserForm({
           <div className="space-y-2">
             <Label htmlFor="role">Rol</Label>
             <Select
-              value={watch("role")}
+              value={selectedRole}
               onValueChange={(value: UserRole) => setValue("role", value)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Seleccionar rol" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="admin">Administrador</SelectItem>
-                <SelectItem value="manager">Gerente</SelectItem>
-                <SelectItem value="employee">Empleado</SelectItem>
+                <SelectItem value="admin" className="flex items-center">
+                  <div className="flex items-center">
+                    <Shield className="h-4 w-4 mr-2 text-red-500" />
+                    Administrador
+                  </div>
+                </SelectItem>
+                <SelectItem value="manager">
+                  <div className="flex items-center">
+                    <Briefcase className="h-4 w-4 mr-2 text-blue-500" />
+                    Gerente
+                  </div>
+                </SelectItem>
+                <SelectItem value="employee">
+                  <div className="flex items-center">
+                    <UserCircle className="h-4 w-4 mr-2 text-green-500" />
+                    Empleado
+                  </div>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {/* Role information card */}
+          <Card className={`${roleInfo[selectedRole].bgColor} border-0`}>
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <RoleIcon className={`h-8 w-8 ${roleInfo[selectedRole].color}`} />
+                <div>
+                  <h4 className="font-medium">{roleInfo[selectedRole].title}</h4>
+                  <CardDescription>{roleInfo[selectedRole].description}</CardDescription>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {ROLE_PERMISSIONS[selectedRole].map((permission) => (
+                      <Badge key={permission} variant="outline" className="bg-white">
+                        <CheckCircle2 className="h-3 w-3 mr-1 text-green-500" />
+                        {permission}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="flex items-center space-x-2">
             <Switch
@@ -158,15 +287,34 @@ export default function UserForm({
               checked={watch("is_active")}
               onCheckedChange={(checked) => setValue("is_active", checked)}
             />
-            <Label htmlFor="is_active">Usuario Activo</Label>
+            <Label htmlFor="is_active" className="flex items-center gap-1">
+              Usuario Activo
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-gray-400" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Los usuarios inactivos no pueden iniciar sesión</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </Label>
           </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
-            <Button type="submit">
-              {isEditing ? "Guardar Cambios" : "Crear Usuario"}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <span className="animate-spin mr-2">⟳</span>
+                  {isEditing ? "Guardando..." : "Creando..."}
+                </>
+              ) : (
+                isEditing ? "Guardar Cambios" : "Crear Usuario"
+              )}
             </Button>
           </DialogFooter>
         </form>

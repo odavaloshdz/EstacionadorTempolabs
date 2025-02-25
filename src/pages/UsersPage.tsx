@@ -41,6 +41,7 @@ import {
   Briefcase,
   UserCircle
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function UsersPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -82,11 +83,21 @@ export default function UsersPage() {
       // Combine profile and roles data
       const usersWithRoles = (profiles || []).map((profile: any) => {
         const roleData = rolesData?.find((r) => r.user_id === profile.id);
+        // Map database roles to application roles
+        let appRole: UserRole = "employee";
+        if (roleData?.role === "admin") {
+          appRole = "admin";
+        } else if (roleData?.role === "user") {
+          // Determine if this is a manager or employee based on permissions or other criteria
+          // For now, we'll default to employee
+          appRole = "employee";
+        }
+        
         return {
           id: profile.id,
           first_name: profile.first_name,
           last_name: profile.last_name || "",
-          role: (roleData?.role || "employee") as UserRole,
+          role: appRole,
           is_active: true, // Assuming all users are active by default
           created_at: profile.created_at,
           updated_at: profile.updated_at || profile.created_at,
@@ -185,11 +196,13 @@ export default function UsersPage() {
       if (profileError) throw profileError;
 
       // 3. Assign role
+      // Map application roles to database roles
+      const dbRole = data.role === "admin" ? "admin" : "user";
       const { error: roleError } = await supabase
         .from("user_roles")
         .insert([{
           user_id: authData.user?.id,
-          role: data.role,
+          role: dbRole,
           created_at: new Date().toISOString(),
         }]);
 
@@ -229,10 +242,12 @@ export default function UsersPage() {
       if (profileError) throw profileError;
 
       // 2. Update role
+      // Map application roles to database roles
+      const dbRole = data.role === "admin" ? "admin" : "user";
       const { error: roleError } = await supabase
         .from("user_roles")
         .update({
-          role: data.role,
+          role: dbRole,
         })
         .eq("user_id", selectedUser.id);
 
@@ -242,7 +257,7 @@ export default function UsersPage() {
           .from("user_roles")
           .insert([{
             user_id: selectedUser.id,
-            role: data.role,
+            role: dbRole,
             created_at: new Date().toISOString(),
           }]);
 
@@ -312,6 +327,61 @@ export default function UsersPage() {
     }
   };
 
+  const handleMakeAdmin = async (user: UserProfile) => {
+    try {
+      setLoading(true);
+      
+      // Verificar si el usuario ya tiene un rol asignado
+      const { data: existingRole, error: roleCheckError } = await supabase
+        .from("user_roles")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+      
+      if (roleCheckError && roleCheckError.code !== "PGRST116") {
+        throw roleCheckError;
+      }
+      
+      // Actualizar o insertar el rol según corresponda
+      if (existingRole) {
+        const { error: updateError } = await supabase
+          .from("user_roles")
+          .update({ role: "admin" })
+          .eq("user_id", user.id);
+        
+        if (updateError) throw updateError;
+      } else {
+        const { error: insertError } = await supabase
+          .from("user_roles")
+          .insert([
+            {
+              user_id: user.id,
+              role: "admin",
+              created_at: new Date().toISOString()
+            }
+          ]);
+        
+        if (insertError) throw insertError;
+      }
+      
+      toast({
+        title: "Rol actualizado",
+        description: `${user.first_name} ${user.last_name} ahora es administrador`,
+      });
+      
+      await loadUsers();
+    } catch (error: any) {
+      console.error("Error al asignar rol de administrador:", error);
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo asignar el rol de administrador",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!hasPermission("users.view")) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -334,100 +404,73 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <h1 className="text-3xl font-bold">Gestión de Usuarios</h1>
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={loadUsers}
-            className="p-2 rounded-md hover:bg-gray-100"
-            title="Refrescar datos"
-          >
-            <RefreshCw className="h-5 w-5" />
-          </button>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="container mx-auto py-8">
+      <h1 className="text-2xl font-bold mb-6">Gestión de Usuarios</h1>
+      
+      {/* Estadísticas y filtros */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Total de Usuarios</CardTitle>
-            <CardDescription>Usuarios registrados en el sistema</CardDescription>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              Usuarios
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex justify-between items-center">
-              <div className="text-3xl font-bold">{stats.total}</div>
-              <Users className="h-8 w-8 text-gray-400" />
+            <div className="text-3xl font-bold">{stats.total}</div>
+            <div className="text-sm text-gray-500">
+              <span className="text-green-500">{stats.active} activos</span>
+              {stats.inactive > 0 && (
+                <span className="text-red-500 ml-2">{stats.inactive} inactivos</span>
+              )}
             </div>
-            <div className="mt-2 flex gap-2">
-              <Badge variant="outline" className="bg-green-100 text-green-800">
-                <UserCheck className="h-3 w-3 mr-1" /> {stats.active} Activos
-              </Badge>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Shield className="h-5 w-5 text-red-500" />
+              Roles
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
               <Badge variant="outline" className="bg-red-100 text-red-800">
-                <UserX className="h-3 w-3 mr-1" /> {stats.inactive} Inactivos
+                {stats.admins} Administradores
+              </Badge>
+              <Badge variant="outline" className="bg-blue-100 text-blue-800">
+                {stats.managers} Gerentes
+              </Badge>
+              <Badge variant="outline" className="bg-green-100 text-green-800">
+                {stats.employees} Empleados
               </Badge>
             </div>
           </CardContent>
         </Card>
-
+        
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Distribución de Roles</CardTitle>
-            <CardDescription>Usuarios por tipo de rol</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center">
-                  <Shield className="h-4 w-4 mr-2 text-red-500" />
-                  <span>Administradores</span>
-                </div>
-                <Badge variant="outline" className="bg-red-100 text-red-800">
-                  {stats.admins}
-                </Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center">
-                  <Briefcase className="h-4 w-4 mr-2 text-blue-500" />
-                  <span>Gerentes</span>
-                </div>
-                <Badge variant="outline" className="bg-blue-100 text-blue-800">
-                  {stats.managers}
-                </Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center">
-                  <UserCircle className="h-4 w-4 mr-2 text-green-500" />
-                  <span>Empleados</span>
-                </div>
-                <Badge variant="outline" className="bg-green-100 text-green-800">
-                  {stats.employees}
-                </Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Filtros</CardTitle>
-            <CardDescription>Buscar y filtrar usuarios</CardDescription>
+            <CardTitle className="text-lg">Filtros</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+            <div className="flex gap-2">
               <Input
                 placeholder="Buscar por nombre o email"
-                className="pl-8"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1"
               />
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={() => loadUsers()}
+                title="Recargar"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
             </div>
-            <Select
-              value={roleFilter}
-              onValueChange={setRoleFilter}
-            >
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
               <SelectTrigger>
                 <SelectValue placeholder="Filtrar por rol" />
               </SelectTrigger>
@@ -441,23 +484,32 @@ export default function UsersPage() {
           </CardContent>
         </Card>
       </div>
+      
+      {/* Tabla de usuarios */}
+      {loading ? (
+        <div className="flex justify-center my-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        </div>
+      ) : (
+        <UserTable
+          users={filteredUsers}
+          onEdit={(user) => {
+            setSelectedUser(user);
+            setShowForm(true);
+          }}
+          onDelete={(user) => {
+            setSelectedUser(user);
+            setShowDeleteDialog(true);
+          }}
+          onCreateNew={() => {
+            setSelectedUser(null);
+            setShowForm(true);
+          }}
+          onMakeAdmin={handleMakeAdmin}
+        />
+      )}
 
-      <UserTable
-        users={filteredUsers}
-        onEdit={(user) => {
-          setSelectedUser(user);
-          setShowForm(true);
-        }}
-        onDelete={(user) => {
-          setSelectedUser(user);
-          setShowDeleteDialog(true);
-        }}
-        onCreateNew={() => {
-          setSelectedUser(null);
-          setShowForm(true);
-        }}
-      />
-
+      {/* Formulario de usuario */}
       {showForm && (
         <UserForm
           open={showForm}
@@ -471,24 +523,19 @@ export default function UsersPage() {
         />
       )}
 
+      {/* Diálogo de confirmación de eliminación */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
               Esta acción no se puede deshacer. Se eliminará permanentemente el
-              usuario
-              {selectedUser &&
-                ` ${selectedUser.first_name} ${selectedUser.last_name}`}
-              y todos sus datos asociados.
+              usuario {selectedUser?.first_name} {selectedUser?.last_name}.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteUser}
-              className="bg-red-500 hover:bg-red-600"
-            >
+            <AlertDialogAction onClick={handleDeleteUser}>
               Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>

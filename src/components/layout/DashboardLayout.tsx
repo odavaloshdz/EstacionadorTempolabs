@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { LayoutGrid, Settings, LogOut, Menu, X, Users, User, ChevronDown } from "lucide-react";
+import { LayoutGrid, Settings, LogOut, Menu, X, Users, User, ChevronDown, Shield } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { UserRole } from "@/types/auth";
 
@@ -14,12 +14,14 @@ interface DashboardLayoutProps {
 // Definición de colores para roles
 const roleColors: Record<UserRole, string> = {
   admin: "bg-red-500 text-white",
+  manager: "bg-blue-500 text-white",
   employee: "bg-green-500 text-white",
 };
 
 // Nombres amigables para roles
 const roleNames: Record<UserRole, string> = {
   admin: "Administrador",
+  manager: "Gerente",
   employee: "Empleado",
 };
 
@@ -28,26 +30,36 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const { signOut, user } = useAuth();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isAdmin } = usePermissions();
   const navigate = useNavigate();
 
+  // Definir los elementos del menú
   const menuItems = [
     {
       icon: LayoutGrid,
       label: "Dashboard",
       href: "/dashboard",
+      visible: true,
     },
-    hasPermission("users.view") && {
+    {
       icon: Users,
       label: "Usuarios",
       href: "/dashboard/users",
+      visible: hasPermission("users.view"),
     },
     {
       icon: Settings,
       label: "Configuración",
       href: "/dashboard/settings",
+      visible: hasPermission("settings.view"),
     },
-  ].filter(Boolean);
+    {
+      icon: Shield,
+      label: "Herramientas Admin",
+      href: "/dashboard/admin-tools",
+      visible: isAdmin,
+    },
+  ].filter(item => item.visible);
 
   const handleSignOut = async () => {
     await signOut();
@@ -101,23 +113,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           )}
 
           <nav className="flex-1 p-4 space-y-2">
-            {menuItems.map(
-              (item) =>
-                item && (
-                  <Button
-                    key={item.label}
-                    variant="ghost"
-                    className={cn(
-                      "w-full justify-start",
-                      !isSidebarOpen && "justify-center",
-                    )}
-                    onClick={() => navigate(item.href)}
-                  >
-                    <item.icon className="h-5 w-5 mr-2" />
-                    {isSidebarOpen && <span>{item.label}</span>}
-                  </Button>
-                ),
-            )}
+            {menuItems.map((item) => (
+              <Button
+                key={item.label}
+                variant="ghost"
+                className={cn(
+                  "w-full justify-start",
+                  !isSidebarOpen && "justify-center",
+                )}
+                onClick={() => navigate(item.href)}
+              >
+                <item.icon className="h-5 w-5 mr-2" />
+                {isSidebarOpen && <span>{item.label}</span>}
+              </Button>
+            ))}
           </nav>
 
           <div className="p-4 border-t">
@@ -188,31 +197,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Mobile menu */}
         {isMobileMenuOpen && (
           <div className="border-t p-4 bg-white space-y-2">
-            {menuItems.map(
-              (item) =>
-                item && (
-                  <Button
-                    key={item.label}
-                    variant="ghost"
-                    className="w-full justify-start"
-                    onClick={() => {
-                      navigate(item.href);
-                      setIsMobileMenuOpen(false);
-                    }}
-                  >
-                    <item.icon className="h-5 w-5 mr-2" />
-                    <span>{item.label}</span>
-                  </Button>
-                ),
-            )}
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
-              onClick={handleSignOut}
-            >
-              <LogOut className="h-5 w-5 mr-2" />
-              <span>Cerrar Sesión</span>
-            </Button>
+            {menuItems.map((item) => (
+              <Button
+                key={item.label}
+                variant="ghost"
+                className="w-full justify-start"
+                onClick={() => {
+                  navigate(item.href);
+                  setIsMobileMenuOpen(false);
+                }}
+              >
+                <item.icon className="h-5 w-5 mr-2" />
+                <span>{item.label}</span>
+              </Button>
+            ))}
           </div>
         )}
       </div>
