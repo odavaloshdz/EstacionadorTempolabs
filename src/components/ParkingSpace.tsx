@@ -6,7 +6,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Car, Bike, Truck, HelpCircle } from "lucide-react";
+import { Car, Bike, Truck, HelpCircle, AccessibilityIcon, Star } from "lucide-react";
 import { VehicleType } from "@/types/parking";
 
 interface ParkingSpaceProps {
@@ -15,7 +15,42 @@ interface ParkingSpaceProps {
   onClick?: () => void;
   className?: string;
   vehicleType?: VehicleType;
+  spaceType?: "regular" | "handicap" | "reserved" | "nonParking";
+  isEditing?: boolean;
+  isSelected?: boolean;
 }
+
+// Definición de tipos de espacios y sus colores
+const spaceTypeConfig = {
+  regular: { 
+    name: 'Regular', 
+    color: 'bg-blue-500', 
+    borderColor: 'border-blue-600',
+    textColor: 'text-blue-100',
+    icon: Car 
+  },
+  handicap: { 
+    name: 'Discapacitados', 
+    color: 'bg-purple-500', 
+    borderColor: 'border-purple-600',
+    textColor: 'text-purple-100',
+    icon: AccessibilityIcon 
+  },
+  reserved: { 
+    name: 'Reservado', 
+    color: 'bg-yellow-500', 
+    borderColor: 'border-yellow-600',
+    textColor: 'text-yellow-100',
+    icon: Star 
+  },
+  nonParking: { 
+    name: 'No Estacionable', 
+    color: 'bg-gray-500', 
+    borderColor: 'border-gray-600',
+    textColor: 'text-gray-100',
+    icon: HelpCircle 
+  }
+};
 
 const ParkingSpace = ({
   spaceNumber = "A1",
@@ -23,6 +58,9 @@ const ParkingSpace = ({
   onClick = () => {},
   className,
   vehicleType = "auto",
+  spaceType = "regular",
+  isEditing = false,
+  isSelected = false,
 }: ParkingSpaceProps) => {
   const getVehicleIcon = () => {
     switch (vehicleType) {
@@ -39,8 +77,30 @@ const ParkingSpace = ({
 
   const VehicleIcon = getVehicleIcon();
   const status = isOccupied ? "Ocupado" : "Disponible";
-  const statusColor = isOccupied ? "bg-red-100" : "bg-green-100";
-  const borderColor = isOccupied ? "border-red-500" : "border-green-500";
+  
+  // Determinar colores basados en el tipo de espacio y estado
+  let bgColor, borderColor, textColor, SpaceIcon;
+  
+  if (isEditing) {
+    // En modo edición, mostrar colores según el tipo de espacio
+    const config = spaceTypeConfig[spaceType];
+    bgColor = config.color;
+    borderColor = config.borderColor;
+    textColor = config.textColor;
+    SpaceIcon = config.icon;
+  } else if (spaceType === 'nonParking') {
+    // Espacios no estacionables siempre se muestran igual
+    bgColor = spaceTypeConfig.nonParking.color;
+    borderColor = spaceTypeConfig.nonParking.borderColor;
+    textColor = spaceTypeConfig.nonParking.textColor;
+    SpaceIcon = spaceTypeConfig.nonParking.icon;
+  } else {
+    // En modo normal, mostrar colores según ocupación
+    bgColor = isOccupied ? "bg-red-500" : "bg-green-500";
+    borderColor = isOccupied ? "border-red-600" : "border-green-600";
+    textColor = isOccupied ? "text-red-100" : "text-green-100";
+    SpaceIcon = VehicleIcon;
+  }
 
   return (
     <TooltipProvider>
@@ -51,34 +111,37 @@ const ParkingSpace = ({
               "w-[120px] md:w-[100px] h-[180px] md:h-[150px] border-2 rounded-md p-2 cursor-pointer",
               "transition-colors duration-200 ease-in-out",
               "flex flex-col items-center justify-between",
-              statusColor,
+              bgColor,
               borderColor,
+              isSelected && "ring-4 ring-blue-300",
               className,
             )}
             onClick={onClick}
             role="button"
             tabIndex={0}
           >
-            <span className="text-sm font-semibold">{spaceNumber}</span>
-            <VehicleIcon
+            <span className={cn("text-sm font-semibold", "text-white")}>{spaceNumber}</span>
+            <SpaceIcon
               className={cn(
                 "w-12 h-12",
-                isOccupied ? "text-red-500" : "text-green-500",
+                "text-white opacity-80"
               )}
             />
             <span
               className={cn(
                 "text-xs font-medium",
-                isOccupied ? "text-red-700" : "text-green-700",
+                "text-white"
               )}
             >
-              {status}
+              {isEditing ? spaceTypeConfig[spaceType].name : status}
             </span>
           </div>
         </TooltipTrigger>
         <TooltipContent>
           <p>
-            Space {spaceNumber} - {status}
+            {isEditing 
+              ? `Espacio ${spaceNumber} - ${spaceTypeConfig[spaceType].name}` 
+              : `Espacio ${spaceNumber} - ${status}`}
           </p>
         </TooltipContent>
       </Tooltip>

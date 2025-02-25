@@ -1,4 +1,4 @@
-export type UserRole = "admin" | "employee";
+export type UserRole = "admin" | "manager" | "employee";
 
 export interface UserProfile {
   id: string;
@@ -21,7 +21,9 @@ export type Permission =
   | "users.edit"
   | "users.delete"
   | "settings.view"
-  | "settings.edit";
+  | "settings.edit"
+  | "reports.view"
+  | "tickets.manage";
 
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   admin: [
@@ -31,6 +33,17 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "users.delete",
     "settings.view",
     "settings.edit",
+    "reports.view",
+    "tickets.manage",
   ],
-  employee: ["settings.view"],
+  manager: [
+    "users.view",
+    "settings.view",
+    "reports.view",
+    "tickets.manage",
+  ],
+  employee: [
+    "settings.view",
+    "tickets.manage",
+  ],
 };

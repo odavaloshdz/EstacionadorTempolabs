@@ -146,6 +146,7 @@ export default function UserForm({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="admin">Administrador</SelectItem>
+                <SelectItem value="manager">Gerente</SelectItem>
                 <SelectItem value="employee">Empleado</SelectItem>
               </SelectContent>
             </Select>

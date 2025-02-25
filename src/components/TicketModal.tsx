@@ -17,11 +17,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Clock, CreditCard, Car, Calendar, Palette, Type } from "lucide-react";
+import { Clock, CreditCard, Car, Calendar, Palette, Type, User } from "lucide-react";
 import { printTicket, printReceipt } from "@/lib/printService";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import type { TicketData, VehicleType } from "@/types/parking";
+import type { UserRole } from "@/types/auth";
 
 interface TicketModalProps {
   open?: boolean;
@@ -37,6 +38,18 @@ const vehicleTypes: VehicleType[] = [
   "camioneta",
   "otro"
 ];
+
+// Definición de colores para roles
+const roleColors: Record<UserRole, string> = {
+  admin: "bg-red-500 text-white",
+  employee: "bg-green-500 text-white",
+};
+
+// Nombres amigables para roles
+const roleNames: Record<UserRole, string> = {
+  admin: "Administrador",
+  employee: "Empleado",
+};
 
 const TicketModal = ({
   open = true,
@@ -56,6 +69,7 @@ const TicketModal = ({
     model: "",
     type: "auto" as VehicleType,
   });
+  const [closedBy, setClosedBy] = useState<string | null>(null);
 
   const calculateAmount = async (entryTime: string) => {
     const entry = new Date(entryTime);
@@ -98,6 +112,8 @@ const TicketModal = ({
     try {
       if (!isEntry) {
         updatedTicketData.amount = await calculateAmount(ticketData.entryTime);
+        updatedTicketData.closedBy = user?.email;
+        setClosedBy(user?.email || null);
       }
 
       // Primero actualizamos el estado y la base de datos
@@ -256,6 +272,38 @@ const TicketModal = ({
                   </div>
                 </>
               )}
+
+              {/* Información de quien emitió el ticket */}
+              <div className="border-t pt-3 mt-3">
+                <div className="space-y-2">
+                  <Label>Emitido por:</Label>
+                  <div className="flex items-center space-x-2">
+                    <User className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">{ticketData.createdBy || user?.email || "Sistema"}</span>
+                    {user && (
+                      <span className={`px-2 py-0.5 text-xs rounded ${roleColors[user.role] || "bg-gray-500 text-white"}`}>
+                        {roleNames[user.role] || user.role}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Información de quien cerró el ticket (solo para tickets de salida) */}
+                {!isEntry && (ticketData.closedBy || closedBy) && (
+                  <div className="space-y-2 mt-2">
+                    <Label>Cerrado por:</Label>
+                    <div className="flex items-center space-x-2">
+                      <User className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm">{ticketData.closedBy || closedBy || user?.email || "Sistema"}</span>
+                      {user && (
+                        <span className={`px-2 py-0.5 text-xs rounded ${roleColors[user.role] || "bg-gray-500 text-white"}`}>
+                          {roleNames[user.role] || user.role}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </Card>
         </div>

@@ -16,4 +16,5 @@ export interface TicketData {
   licensePlate: string;
   vehicleInfo?: VehicleInfo;
   createdBy?: string;
+  closedBy?: string;
 }

@@ -66,9 +66,26 @@ export default function UserTable({
                 <TableCell>{user.email}</TableCell>
                 <TableCell>
                   <Badge
-                    variant={user.role === "admin" ? "default" : "secondary"}
+                    variant={
+                      user.role === "admin" 
+                        ? "default" 
+                        : user.role === "manager" 
+                          ? "outline" 
+                          : "secondary"
+                    }
+                    className={
+                      user.role === "admin" 
+                        ? "bg-red-500" 
+                        : user.role === "manager" 
+                          ? "bg-blue-500 text-white" 
+                          : "bg-green-500 text-white"
+                    }
                   >
-                    {user.role === "admin" ? "Administrador" : "Empleado"}
+                    {user.role === "admin" 
+                      ? "Administrador" 
+                      : user.role === "manager" 
+                        ? "Gerente" 
+                        : "Empleado"}
                   </Badge>
                 </TableCell>
                 <TableCell>

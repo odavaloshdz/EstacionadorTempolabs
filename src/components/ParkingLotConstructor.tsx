@@ -2,9 +2,18 @@ import React, { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import ParkingSpace from "./ParkingSpace";
 import { Button } from "@/components/ui/button";
-import { Plus, Minus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Minus, ChevronLeft, ChevronRight, Edit, Save } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { VehicleType } from "@/types/parking";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useAuth } from "@/contexts/AuthContext";
+import { ROLE_PERMISSIONS } from "@/types/auth";
 
 interface ParkingLotConstructorProps {
   rows?: number;
@@ -14,7 +23,9 @@ interface ParkingLotConstructorProps {
     id: string;
     isOccupied: boolean;
     vehicleType?: VehicleType;
+    spaceType?: "regular" | "handicap" | "reserved" | "nonParking";
   }>;
+  onSpaceTypeChange?: (spaceId: string, spaceType: string) => void;
 }
 
 const SPACES_PER_PAGE = 50; // Ajusta este número según necesites
@@ -24,10 +35,17 @@ const ParkingLotConstructor = ({
   columns = 4,
   onSpaceClick = () => {},
   spaces = [],
+  onSpaceTypeChange = () => {},
 }: ParkingLotConstructorProps) => {
+  const { user } = useAuth();
   const [zoom, setZoom] = useState(window.innerWidth < 768 ? 0.8 : 1);
   const [currentPage, setCurrentPage] = useState(1);
   const [gridDimensions, setGridDimensions] = useState({ width: 0, height: 0 });
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedSpace, setSelectedSpace] = useState<string | null>(null);
+
+  // Verificar si el usuario tiene permisos para editar
+  const canEdit = user && ROLE_PERMISSIONS[user.role].includes("settings.edit");
 
   // Calcular el número total de páginas
   const totalPages = Math.ceil(spaces.length / SPACES_PER_PAGE);
@@ -71,26 +89,53 @@ const ParkingLotConstructor = ({
     setZoom((prev) => Math.max(prev - 0.2, 0.5));
   };
 
-  const getVehicleTypeColor = (type?: string) => {
-    switch (type) {
-      case "auto":
-        return "bg-blue-100";
-      case "moto":
-        return "bg-green-100";
-      case "camioneta":
-        return "bg-yellow-100";
-      case "otro":
-        return "bg-purple-100";
-      default:
-        return "bg-gray-100";
+  const handleSpaceClick = (spaceId: string) => {
+    if (isEditing) {
+      setSelectedSpace(selectedSpace === spaceId ? null : spaceId);
+    } else {
+      onSpaceClick(spaceId);
     }
   };
+
+  const handleSpaceTypeChange = (type: string) => {
+    if (selectedSpace && isEditing) {
+      onSpaceTypeChange(selectedSpace, type);
+    }
+  };
+
+  const toggleEditMode = () => {
+    if (!canEdit) return;
+    setIsEditing(!isEditing);
+    setSelectedSpace(null);
+  };
+
+  // Definición de tipos de espacios para el selector
+  const spaceTypes = [
+    { value: "regular", label: "Regular" },
+    { value: "handicap", label: "Discapacitados" },
+    { value: "reserved", label: "Reservado" },
+    { value: "nonParking", label: "No Estacionable" },
+  ];
 
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-lg w-full h-full flex flex-col gap-4">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
         <h2 className="text-2xl font-bold">Diseño del Estacionamiento</h2>
         <div className="flex items-center gap-2">
+          {canEdit && (
+            <>
+              <Button
+                variant={isEditing ? "default" : "outline"}
+                size="sm"
+                onClick={toggleEditMode}
+                className={isEditing ? "bg-blue-500 hover:bg-blue-600" : ""}
+              >
+                <Edit className="h-4 w-4 mr-1" />
+                {isEditing ? "Modo Edición" : "Editar"}
+              </Button>
+              <Separator orientation="vertical" className="h-8" />
+            </>
+          )}
           <div className="flex items-center">
             <Button
               variant="outline"
@@ -101,7 +146,7 @@ const ParkingLotConstructor = ({
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span className="flex items-center px-2 text-sm">
-              Página {currentPage} de {totalPages}
+              Página {currentPage} de {totalPages || 1}
             </span>
             <Button
               variant="outline"
@@ -109,7 +154,7 @@ const ParkingLotConstructor = ({
               onClick={() =>
                 setCurrentPage((prev) => Math.min(prev + 1, totalPages))
               }
-              disabled={currentPage === totalPages}
+              disabled={currentPage === totalPages || totalPages === 0}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -136,6 +181,29 @@ const ParkingLotConstructor = ({
         </div>
       </div>
 
+      {isEditing && selectedSpace && (
+        <div className="bg-gray-100 p-3 rounded-md mb-2">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="font-medium">Espacio {selectedSpace}:</span>
+            <Select 
+              onValueChange={handleSpaceTypeChange}
+              value={spaces.find(s => s.id === selectedSpace)?.spaceType || "regular"}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Tipo de espacio" />
+              </SelectTrigger>
+              <SelectContent>
+                {spaceTypes.map(type => (
+                  <SelectItem key={type.value} value={type.value}>
+                    {type.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 overflow-auto">
         <div
           className="grid gap-4 p-4"
@@ -153,7 +221,10 @@ const ParkingLotConstructor = ({
               spaceNumber={space.id}
               isOccupied={space.isOccupied}
               vehicleType={space.vehicleType}
-              onClick={() => onSpaceClick(space.id)}
+              spaceType={space.spaceType || "regular"}
+              isEditing={isEditing}
+              isSelected={selectedSpace === space.id}
+              onClick={() => handleSpaceClick(space.id)}
               className={cn(
                 "transition-transform hover:scale-105",
                 "shadow-sm hover:shadow-md",
