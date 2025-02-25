@@ -8,6 +8,7 @@ import Home from "@/components/home";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import SettingsPage from "@/pages/SettingsPage";
 import UsersPage from "@/pages/UsersPage";
+import SessionRecovery from "@/components/SessionRecovery";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 
@@ -28,11 +29,13 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
       }
     }, 3000);
     
-    // Si el estado de carga dura más de 10 segundos, ofrecemos opciones para resolver
+    // Si el estado de carga dura más de 10 segundos, redirigimos a la página de recuperación
     const longTimer = setTimeout(() => {
       if (loading) {
         console.log("Long loading timeout reached (10s)");
         setLongLoadingTimeout(true);
+        // Redirigir a la página de recuperación de sesión después de 10 segundos
+        navigate("/recovery", { replace: true });
       }
     }, 10000);
 
@@ -40,7 +43,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
       clearTimeout(timer);
       clearTimeout(longTimer);
     };
-  }, [loading, user]);
+  }, [loading, user, navigate]);
 
   // Verificar la sesión directamente como respaldo
   useEffect(() => {
@@ -71,32 +74,13 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
         <div className="text-lg font-medium">Cargando...</div>
         {loadingTimeout && (
           <div className="mt-4 text-sm text-gray-500 max-w-md text-center">
-            Esto está tomando más tiempo de lo esperado. Si el problema persiste, 
-            intenta cerrar sesión y volver a iniciarla.
-          </div>
-        )}
-        {longLoadingTimeout && (
-          <div className="mt-4 flex flex-col items-center">
-            <p className="text-sm text-red-500 mb-2">
-              Parece que hay un problema con la carga.
-            </p>
-            <div className="flex gap-2">
-              <button 
-                onClick={() => navigate("/login")}
-                className="px-4 py-2 bg-primary text-white rounded-md text-sm"
-              >
-                Ir al login
-              </button>
-              <button 
-                onClick={async () => {
-                  await supabase.auth.signOut();
-                  navigate("/login", { replace: true });
-                }}
-                className="px-4 py-2 bg-red-500 text-white rounded-md text-sm"
-              >
-                Cerrar sesión
-              </button>
-            </div>
+            Esto está tomando más tiempo de lo esperado. 
+            <button 
+              onClick={() => navigate("/recovery")}
+              className="ml-2 text-primary underline"
+            >
+              Ir a recuperación
+            </button>
           </div>
         )}
       </div>
@@ -117,6 +101,7 @@ const AppRoutes = () => (
     <Route path="/" element={<LandingPage />} />
     <Route path="/login" element={<LoginPage />} />
     <Route path="/register" element={<RegisterPage />} />
+    <Route path="/recovery" element={<SessionRecovery />} />
     <Route
       path="/dashboard"
       element={

@@ -109,10 +109,10 @@ const ParkingConstructor: React.FC = () => {
             const [row, col] = space.space_number.split('-').map(Number);
             newLayout[row][col] = {
               id: space.space_number,
-              type: space.type || 'regular',
+              type: 'regular',
               occupied: space.is_occupied,
-              label: space.label || '',
-              ticketId: space.ticket_id
+              label: space.space_number,
+              ticketId: null
             };
           });
 

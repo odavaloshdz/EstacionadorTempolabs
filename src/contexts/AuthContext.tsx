@@ -7,14 +7,38 @@ type AuthContextType = {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  resetAuthState: () => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Función para crear un timeout que resolverá después de un tiempo definido
+const createTimeout = (ms: number): Promise<void> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve();
+    }, ms);
+  });
+};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
+  const [authError, setAuthError] = useState<Error | null>(null);
+
+  // Función para resetear el estado de autenticación
+  const resetAuthState = () => {
+    console.log("Resetting auth state...");
+    setLoading(true);
+    setInitialized(false);
+    setAuthError(null);
+    setUser(null);
+    // Inmediatamente inicializamos de nuevo
+    setTimeout(() => {
+      setInitialized(false);
+    }, 100);
+  };
 
   // Función para crear un perfil de usuario si no existe
   const createUserProfile = async (userId: string, userEmail: string) => {
@@ -62,107 +86,148 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loadUserProfile = async (userId: string, userEmail: string) => {
     try {
       console.log("Loading user profile for:", userEmail);
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
-
-      // Si no existe el perfil, intentamos crearlo
-      if (profileError) {
-        console.error("Profile error:", profileError);
-        
-        if (profileError.code === 'PGRST116') { // No data found
-          console.log("Profile not found, creating one...");
-          const created = await createUserProfile(userId, userEmail);
-          
-          if (created) {
-            // Intentar cargar el perfil nuevamente
-            const { data: newProfile, error: newProfileError } = await supabase
-              .from("profiles")
-              .select("*")
-              .eq("id", userId)
-              .single();
-              
-            if (newProfileError) {
-              console.error("Error loading new profile:", newProfileError);
-              setUser(null);
-              setLoading(false);
-              return;
-            }
-            
-            // Perfil creado y cargado exitosamente
-            setUser({
-              id: newProfile.id,
-              first_name: newProfile.first_name,
-              last_name: newProfile.last_name || "",
-              email: userEmail,
-              role: "employee" as UserRole,
-              is_active: true,
-              created_at: newProfile.created_at,
-              updated_at: newProfile.updated_at
-            });
-            setLoading(false);
-            return;
-          } else {
-            // No se pudo crear el perfil
-            setUser(null);
-            setLoading(false);
-            return;
-          }
-        } else {
-          // Otro tipo de error
-          setUser(null);
-          setLoading(false);
-          return;
-        }
-      }
-
-      const { data: roleData, error: roleError } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId)
-        .single();
-
-      // Si no existe el rol, usamos un rol predeterminado
-      if (roleError) {
-        console.error("Role error:", roleError);
-        console.log("Using default role: employee");
-        
-        if (profile) {
-          setUser({
-            id: profile.id,
-            first_name: profile.first_name,
-            last_name: profile.last_name || "",
+      
+      // Creamos un timeout para asegurarnos de que la operación no quede atascada
+      const timeoutPromise = createTimeout(5000).then(() => {
+        console.warn("Profile loading timeout reached, using fallback user");
+        return {
+          timeout: true,
+          fallbackUser: {
+            id: userId,
+            first_name: userEmail.split('@')[0],
+            last_name: "",
             email: userEmail,
             role: "employee" as UserRole,
             is_active: true,
-            created_at: profile.created_at,
-            updated_at: profile.updated_at
-          });
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
+        };
+      });
+      
+      // Cargar el perfil
+      const loadProfilePromise = (async () => {
+        try {
+          const { data: profile, error: profileError } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", userId)
+            .single();
+  
+          // Si no existe el perfil, intentamos crearlo
+          if (profileError) {
+            console.error("Profile error:", profileError);
+            
+            if (profileError.code === 'PGRST116') { // No data found
+              console.log("Profile not found, creating one...");
+              const created = await createUserProfile(userId, userEmail);
+              
+              if (created) {
+                // Intentar cargar el perfil nuevamente
+                const { data: newProfile, error: newProfileError } = await supabase
+                  .from("profiles")
+                  .select("*")
+                  .eq("id", userId)
+                  .single();
+                  
+                if (newProfileError) {
+                  console.error("Error loading new profile:", newProfileError);
+                  return { error: newProfileError };
+                }
+                
+                // Perfil creado y cargado exitosamente
+                return { 
+                  user: {
+                    id: newProfile.id,
+                    first_name: newProfile.first_name,
+                    last_name: newProfile.last_name || "",
+                    email: userEmail,
+                    role: "employee" as UserRole,
+                    is_active: true,
+                    created_at: newProfile.created_at,
+                    updated_at: newProfile.updated_at
+                  } 
+                };
+              } else {
+                // No se pudo crear el perfil
+                return { error: new Error("Failed to create profile") };
+              }
+            } else {
+              // Otro tipo de error
+              return { error: profileError };
+            }
+          }
+  
+          const { data: roleData, error: roleError } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", userId)
+            .single();
+  
+          // Si no existe el rol, usamos un rol predeterminado
+          let userRole: UserRole = "employee";
+          if (!roleError && roleData?.role === "admin") {
+            userRole = "admin";
+          }
+  
+          if (profile) {
+            return {
+              user: {
+                id: profile.id,
+                first_name: profile.first_name,
+                last_name: profile.last_name || "",
+                email: userEmail,
+                role: userRole,
+                is_active: true,
+                created_at: profile.created_at,
+                updated_at: profile.updated_at
+              }
+            };
+          }
+          
+          return { error: new Error("Profile data not found") };
+        } catch (err) {
+          return { error: err instanceof Error ? err : new Error("Unknown error") };
         }
+      })();
+      
+      // Competencia entre el timeout y la carga del perfil
+      const result = await Promise.race([timeoutPromise, loadProfilePromise]);
+      
+      // Comprobamos el resultado
+      if ('timeout' in result && result.timeout) {
+        console.warn("Using fallback user due to timeout");
+        setUser(result.fallbackUser);
         setLoading(false);
         return;
       }
-
-      if (profile) {
-        // Verificar que el rol sea válido según UserRole
-        let userRole: UserRole = "employee";
-        if (roleData?.role === "admin") {
-          userRole = "admin";
-        }
-        
+      
+      if ('error' in result && result.error) {
+        console.error("Error in profile loading:", result.error);
+        // Creamos un usuario básico para que la aplicación funcione
         setUser({
-          id: profile.id,
-          first_name: profile.first_name,
-          last_name: profile.last_name || "",
+          id: userId,
+          first_name: userEmail.split('@')[0],
+          last_name: "",
           email: userEmail,
-          role: userRole,
+          role: "employee" as UserRole,
           is_active: true,
-          created_at: profile.created_at,
-          updated_at: profile.updated_at
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         });
+        setLoading(false);
+        return;
       }
+      
+      if ('user' in result && result.user) {
+        setUser(result.user);
+        setLoading(false);
+        return;
+      }
+      
+      // Si llegamos aquí, algo inesperado ocurrió
+      console.error("Unexpected result in loadUserProfile", result);
+      setUser(null);
       setLoading(false);
     } catch (error) {
       console.error("Error loading user profile:", error);
@@ -190,10 +255,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         setLoading(true);
         console.log("Initializing auth...");
+        
+        // Crear un timeout para evitar que la inicialización quede atascada
+        const initTimeout = setTimeout(() => {
+          if (mounted && loading) {
+            console.warn("Auth initialization timeout reached, resetting state");
+            setUser(null);
+            setLoading(false);
+            setInitialized(true);
+            setAuthError(new Error("Auth initialization timeout"));
+          }
+        }, 8000);
+        
         const {
           data: { session },
           error: sessionError
         } = await supabase.auth.getSession();
+        
+        // Limpiar el timeout ya que la operación completó
+        clearTimeout(initTimeout);
         
         if (sessionError) {
           console.error("Session error:", sessionError);
@@ -201,6 +281,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(null);
             setLoading(false);
             setInitialized(true);
+            setAuthError(sessionError);
           }
           return;
         }
@@ -226,6 +307,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(null);
           setLoading(false);
           setInitialized(true);
+          setAuthError(error instanceof Error ? error : new Error("Unknown error"));
         }
       }
     };
@@ -240,7 +322,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           console.log("Loading user profile after auth state change");
           setLoading(true);
+          
+          // Establecer un timeout para cargar el perfil
+          const profileTimeout = setTimeout(() => {
+            if (mounted && loading) {
+              console.warn("Profile loading timeout in auth state change");
+              // Crear un usuario genérico y continuar
+              setUser({
+                id: session.user.id,
+                first_name: session.user.email!.split('@')[0],
+                last_name: "",
+                email: session.user.email!,
+                role: "employee" as UserRole,
+                is_active: true,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              });
+              setLoading(false);
+            }
+          }, 5000);
+          
           await loadUserProfile(session.user.id, session.user.email!);
+          
+          // Limpiar el timeout ya que la operación completó
+          clearTimeout(profileTimeout);
         } catch (error) {
           console.error("Error in auth state change:", error);
           if (mounted) {
@@ -260,7 +365,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [initialized]);
+  }, [initialized, loading]);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -311,6 +416,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     signIn,
     signOut,
+    resetAuthState
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
