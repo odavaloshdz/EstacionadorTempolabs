@@ -3,7 +3,7 @@ import ApplicationLogo from '@/Components/ApplicationLogo';
 import Dropdown from '@/Components/Dropdown';
 import NavLink from '@/Components/NavLink';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { 
     LayoutDashboard, 
     Ticket, 
@@ -283,6 +283,11 @@ export default function Authenticated({ user, header, children }) {
                                         <Dropdown.Link href={route('logout')} method="post" as="button">
                                             Cerrar Sesión
                                         </Dropdown.Link>
+                                        {user.email === usePage().props.superadmin_email && (
+                                            <Dropdown.Link href={route('superadmin.dashboard')}>
+                                                Panel SuperAdmin
+                                            </Dropdown.Link>
+                                        )}
                                     </Dropdown.Content>
                                 </Dropdown>
                             </div>

@@ -14,37 +14,35 @@ class CompanySeeder extends Seeder
      */
     public function run(): void
     {
-        // Crear una empresa de ejemplo
+        // Crear compañías de ejemplo
         Company::create([
-            'name' => 'Estacionador Demo',
-            'slug' => 'estacionador-demo',
-            'contact_email' => 'info@estacionador.com',
-            'contact_phone' => '555-123-4567',
-            'address' => 'Av. Principal 123',
-            'city' => 'Ciudad de México',
-            'state' => 'CDMX',
-            'zip_code' => '01000',
-            'country' => 'México',
-            'description' => 'Empresa de demostración para el sistema de gestión de estacionamientos',
-            'is_active' => true,
+            'name' => 'Estacionamiento Central',
+            'address' => 'Av. Principal 123, Ciudad de México',
+            'phone' => '5555123456',
+            'email' => 'contacto@estacionamientocentral.com',
+            'website' => 'www.estacionamientocentral.com',
+            'status' => 'active',
+            'subscription_start' => now(),
+            'subscription_end' => now()->addYear(),
+            'subscription_type' => 'premium',
+            'max_users' => 10,
+            'max_parking_spaces' => 100,
         ]);
 
-        // Crear algunas empresas adicionales
-        for ($i = 1; $i <= 3; $i++) {
-            $name = "Estacionamiento $i";
-            Company::create([
-                'name' => $name,
-                'slug' => Str::slug($name),
-                'contact_email' => "info$i@estacionamiento.com",
-                'contact_phone' => "555-123-456$i",
-                'address' => "Calle $i #123",
-                'city' => 'Ciudad de México',
-                'state' => 'CDMX',
-                'zip_code' => "0100$i",
-                'country' => 'México',
-                'description' => "Empresa de estacionamiento número $i",
-                'is_active' => true,
-            ]);
-        }
+        Company::create([
+            'name' => 'Parking Express',
+            'address' => 'Calle Secundaria 456, Guadalajara',
+            'phone' => '3331234567',
+            'email' => 'info@parkingexpress.com',
+            'website' => 'www.parkingexpress.com',
+            'status' => 'active',
+            'subscription_start' => now(),
+            'subscription_end' => now()->addMonths(6),
+            'subscription_type' => 'basic',
+            'max_users' => 5,
+            'max_parking_spaces' => 50,
+        ]);
+
+        $this->command->info('Compañías creadas correctamente.');
     }
 }

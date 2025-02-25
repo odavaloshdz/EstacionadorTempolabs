@@ -86,6 +86,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Super Admin Email
+    |--------------------------------------------------------------------------
+    |
+    | This value is the email of the super administrator of the application.
+    | This user will have access to all features regardless of role.
+    |
+    */
+
+    'super_admin_email' => env('SUPER_ADMIN_EMAIL', 'admin@estacionador.com'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Encryption Key
     |--------------------------------------------------------------------------
     |

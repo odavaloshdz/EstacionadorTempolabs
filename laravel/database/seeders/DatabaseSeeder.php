@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
     {
         // Ejecutar los seeders personalizados
         $this->call([
+            SuperAdminSeeder::class,
             CompanySeeder::class,
             SubscriptionPlanSeeder::class,
         ]);

@@ -13,32 +13,35 @@ class Company extends Model
     use HasFactory, SoftDeletes;
 
     /**
-     * Los atributos que son asignables masivamente.
+     * The attributes that are mass assignable.
      *
      * @var array<int, string>
      */
     protected $fillable = [
         'name',
-        'slug',
-        'contact_email',
-        'contact_phone',
         'address',
-        'city',
-        'state',
-        'zip_code',
-        'country',
+        'phone',
+        'email',
+        'website',
         'logo',
-        'description',
-        'is_active',
+        'status',
+        'subscription_start',
+        'subscription_end',
+        'subscription_type',
+        'max_users',
+        'max_parking_spaces',
     ];
 
     /**
-     * Los atributos que deben ser convertidos a tipos nativos.
+     * The attributes that should be cast.
      *
      * @var array<string, string>
      */
     protected $casts = [
-        'is_active' => 'boolean',
+        'subscription_start' => 'date',
+        'subscription_end' => 'date',
+        'max_users' => 'integer',
+        'max_parking_spaces' => 'integer',
     ];
 
     /**
@@ -97,5 +100,33 @@ class Company extends Model
     public function activityLogs(): HasMany
     {
         return $this->hasMany(ActivityLog::class);
+    }
+
+    /**
+     * Check if the company's subscription is active.
+     *
+     * @return bool
+     */
+    public function hasActiveSubscription()
+    {
+        if ($this->status !== 'active') {
+            return false;
+        }
+
+        if (!$this->subscription_end) {
+            return true;
+        }
+
+        return $this->subscription_end->isFuture();
+    }
+
+    /**
+     * Check if the company has reached its user limit.
+     *
+     * @return bool
+     */
+    public function hasReachedUserLimit()
+    {
+        return $this->users()->count() >= $this->max_users;
     }
 }
