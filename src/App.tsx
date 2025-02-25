@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { Routes, Route, Navigate, useRoutes } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import LandingPage from "@/pages/LandingPage";
 import LoginPage from "@/pages/LoginPage";
@@ -7,7 +7,22 @@ import RegisterPage from "@/pages/RegisterPage";
 import Home from "@/components/home";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import SettingsPage from "@/pages/SettingsPage";
-import routes from "tempo-routes";
+import UsersPage from "@/pages/UsersPage";
+import { useAuth } from "@/contexts/AuthContext";
+
+const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div>Cargando...</div>;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+};
 
 const AppRoutes = () => (
   <Routes>
@@ -17,17 +32,31 @@ const AppRoutes = () => (
     <Route
       path="/dashboard"
       element={
-        <DashboardLayout>
-          <Home />
-        </DashboardLayout>
+        <PrivateRoute>
+          <DashboardLayout>
+            <Home />
+          </DashboardLayout>
+        </PrivateRoute>
       }
     />
     <Route
       path="/dashboard/settings"
       element={
-        <DashboardLayout>
-          <SettingsPage />
-        </DashboardLayout>
+        <PrivateRoute>
+          <DashboardLayout>
+            <SettingsPage />
+          </DashboardLayout>
+        </PrivateRoute>
+      }
+    />
+    <Route
+      path="/dashboard/users"
+      element={
+        <PrivateRoute>
+          <DashboardLayout>
+            <UsersPage />
+          </DashboardLayout>
+        </PrivateRoute>
       }
     />
     <Route path="*" element={<Navigate to="/" />} />
@@ -37,8 +66,7 @@ const AppRoutes = () => (
 export default function App() {
   return (
     <AuthProvider>
-      <Suspense fallback={<p>Cargando...</p>}>
-        {import.meta.env.VITE_TEMPO === "true" && useRoutes(routes)}
+      <Suspense fallback={<div>Cargando...</div>}>
         <AppRoutes />
       </Suspense>
     </AuthProvider>

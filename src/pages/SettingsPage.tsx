@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { CarFront, DollarSign, Hash } from "lucide-react";
+
+const DEFAULT_SETTINGS_ID = "00000000-0000-0000-0000-000000000000";
 
 export default function SettingsPage() {
   const [rates, setRates] = useState({
@@ -30,14 +32,50 @@ export default function SettingsPage() {
     },
   });
 
-  const handleSaveRates = () => {
-    // TODO: Save rates to backend
-    console.log("Saving rates:", rates);
-  };
+  useEffect(() => {
+    const loadSettings = async () => {
+      const { data: settings } = await supabase
+        .from("parking_settings")
+        .select("*")
+        .eq("id", DEFAULT_SETTINGS_ID)
+        .single();
 
-  const handleSaveParkingLot = async () => {
+      if (settings) {
+        setRates({
+          auto: settings.rate_auto || 10,
+          moto: settings.rate_moto || 5,
+          camioneta: settings.rate_camioneta || 15,
+          camion: settings.rate_camion || 20,
+          van: settings.rate_van || 15,
+        });
+
+        setParkingLot({
+          name: settings.name || "Estacionamiento Central",
+          totalSpaces: settings.total_spaces || 50,
+          rows: settings.rows || 5,
+          columns: settings.columns || 10,
+          capacityByType: {
+            auto: settings.capacity_auto || 30,
+            moto: settings.capacity_moto || 10,
+            camioneta: settings.capacity_camioneta || 5,
+            camion: settings.capacity_camion || 3,
+            van: settings.capacity_van || 2,
+          },
+        });
+      }
+    };
+
+    loadSettings();
+  }, []);
+
+  const handleSaveRates = async () => {
     try {
-      const { error } = await supabase.from("parking_settings").upsert({
+      const dataToUpdate = {
+        rate_auto: rates.auto,
+        rate_moto: rates.moto,
+        rate_camioneta: rates.camioneta,
+        rate_camion: rates.camion,
+        rate_van: rates.van,
         name: parkingLot.name,
         total_spaces: parkingLot.totalSpaces,
         rows: parkingLot.rows,
@@ -47,7 +85,44 @@ export default function SettingsPage() {
         capacity_camioneta: parkingLot.capacityByType.camioneta,
         capacity_camion: parkingLot.capacityByType.camion,
         capacity_van: parkingLot.capacityByType.van,
-      });
+      };
+
+      const { error } = await supabase
+        .from("parking_settings")
+        .update(dataToUpdate)
+        .eq("id", DEFAULT_SETTINGS_ID);
+
+      if (error) throw error;
+      alert("Tarifas guardadas exitosamente");
+    } catch (error) {
+      console.error("Error saving rates:", error);
+      alert("Error al guardar las tarifas");
+    }
+  };
+
+  const handleSaveParkingLot = async () => {
+    try {
+      const dataToUpdate = {
+        name: parkingLot.name,
+        total_spaces: parkingLot.totalSpaces,
+        rows: parkingLot.rows,
+        columns: parkingLot.columns,
+        capacity_auto: parkingLot.capacityByType.auto,
+        capacity_moto: parkingLot.capacityByType.moto,
+        capacity_camioneta: parkingLot.capacityByType.camioneta,
+        capacity_camion: parkingLot.capacityByType.camion,
+        capacity_van: parkingLot.capacityByType.van,
+        rate_auto: rates.auto,
+        rate_moto: rates.moto,
+        rate_camioneta: rates.camioneta,
+        rate_camion: rates.camion,
+        rate_van: rates.van,
+      };
+
+      const { error } = await supabase
+        .from("parking_settings")
+        .update(dataToUpdate)
+        .eq("id", DEFAULT_SETTINGS_ID);
 
       if (error) throw error;
 
@@ -77,8 +152,6 @@ export default function SettingsPage() {
       console.error("Error saving parking lot settings:", error);
       alert("Error al guardar la configuración");
     }
-    // TODO: Save parking lot settings to backend
-    console.log("Saving parking lot settings:", parkingLot);
   };
 
   return (

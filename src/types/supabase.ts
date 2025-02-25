@@ -415,6 +415,36 @@ export type Database = {
           },
         ]
       }
+      user_profiles: {
+        Row: {
+          created_at: string
+          first_name: string | null
+          id: string
+          is_active: boolean | null
+          last_name: string | null
+          role: Database["public"]["Enums"]["user_role"] | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          first_name?: string | null
+          id: string
+          is_active?: boolean | null
+          last_name?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_name?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -454,6 +484,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "user"
       ticket_status: "active" | "closed" | "cancelled"
+      user_role: "admin" | "employee"
       vehicle_type: "auto" | "moto" | "camioneta" | "otro"
     }
     CompositeTypes: {

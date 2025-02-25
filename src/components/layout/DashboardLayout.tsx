@@ -3,15 +3,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import {
-  LayoutGrid,
-  Settings,
-  LogOut,
-  Menu,
-  X,
-  CarFront,
-  BarChart3,
-} from "lucide-react";
+import { LayoutGrid, Settings, LogOut, Menu, X, Users } from "lucide-react";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -21,6 +14,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { signOut, user } = useAuth();
+  const { hasPermission } = usePermissions();
   const navigate = useNavigate();
 
   const menuItems = [
@@ -29,12 +23,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       label: "Dashboard",
       href: "/dashboard",
     },
+    hasPermission("users.view") && {
+      icon: Users,
+      label: "Usuarios",
+      href: "/dashboard/users",
+    },
     {
       icon: Settings,
       label: "Configuración",
       href: "/dashboard/settings",
     },
-  ];
+  ].filter(Boolean);
 
   const handleSignOut = async () => {
     await signOut();
@@ -68,20 +67,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
 
           <nav className="flex-1 p-4 space-y-2">
-            {menuItems.map((item) => (
-              <Button
-                key={item.label}
-                variant="ghost"
-                className={cn(
-                  "w-full justify-start",
-                  !isSidebarOpen && "justify-center",
-                )}
-                onClick={() => navigate(item.href)}
-              >
-                <item.icon className="h-5 w-5 mr-2" />
-                {isSidebarOpen && <span>{item.label}</span>}
-              </Button>
-            ))}
+            {menuItems.map(
+              (item) =>
+                item && (
+                  <Button
+                    key={item.label}
+                    variant="ghost"
+                    className={cn(
+                      "w-full justify-start",
+                      !isSidebarOpen && "justify-center",
+                    )}
+                    onClick={() => navigate(item.href)}
+                  >
+                    <item.icon className="h-5 w-5 mr-2" />
+                    {isSidebarOpen && <span>{item.label}</span>}
+                  </Button>
+                ),
+            )}
           </nav>
 
           <div className="p-4 border-t">
@@ -103,7 +105,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Mobile header */}
       <div className="md:hidden border-b bg-white">
         <div className="flex items-center justify-between p-4">
-          <span className="font-bold text-xl">ParkingPro</span>
+          <span className="font-bold text-xl">Estacionador</span>
           <Button
             variant="ghost"
             size="icon"
@@ -120,20 +122,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Mobile menu */}
         {isMobileMenuOpen && (
           <div className="border-t p-4 bg-white space-y-2">
-            {menuItems.map((item) => (
-              <Button
-                key={item.label}
-                variant="ghost"
-                className="w-full justify-start"
-                onClick={() => {
-                  navigate(item.href);
-                  setIsMobileMenuOpen(false);
-                }}
-              >
-                <item.icon className="h-5 w-5 mr-2" />
-                <span>{item.label}</span>
-              </Button>
-            ))}
+            {menuItems.map(
+              (item) =>
+                item && (
+                  <Button
+                    key={item.label}
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      navigate(item.href);
+                      setIsMobileMenuOpen(false);
+                    }}
+                  >
+                    <item.icon className="h-5 w-5 mr-2" />
+                    <span>{item.label}</span>
+                  </Button>
+                ),
+            )}
             <Button
               variant="ghost"
               className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50"

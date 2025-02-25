@@ -20,6 +20,7 @@ import {
 import { Clock, CreditCard, Car, Calendar, Palette, Type } from "lucide-react";
 import { printTicket, printReceipt } from "@/lib/printService";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 import type { TicketData, VehicleType } from "@/types/parking";
 
 interface TicketModalProps {
@@ -57,6 +58,31 @@ const TicketModal = ({
     type: "auto" as VehicleType,
   });
 
+  const calculateAmount = async (entryTime: string) => {
+    const entry = new Date(entryTime);
+    const exit = new Date();
+    const hours = Math.ceil(
+      (exit.getTime() - entry.getTime()) / (1000 * 60 * 60),
+    );
+
+    const { data: settings } = await supabase
+      .from("parking_settings")
+      .select("*")
+      .single();
+
+    if (!settings) return 10; // default rate
+
+    const rates = {
+      auto: settings.rate_auto || 10,
+      moto: settings.rate_moto || 5,
+      camioneta: settings.rate_camioneta || 15,
+      camion: settings.rate_camion || 20,
+      van: settings.rate_van || 15,
+    };
+
+    return hours * (rates[formData.type] || rates.auto);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const updatedTicketData = {
@@ -72,6 +98,10 @@ const TicketModal = ({
     };
 
     try {
+      if (!isEntry) {
+        updatedTicketData.amount = await calculateAmount(ticketData.entryTime);
+      }
+
       // Primero actualizamos el estado y la base de datos
       await onSubmit(updatedTicketData);
 

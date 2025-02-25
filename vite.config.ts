@@ -9,13 +9,16 @@ if (process.env.TEMPO === "true") {
 }
 
 // https://vitejs.dev/config/
+// https://vitejs.dev/config/
 export default defineConfig({
+  envPrefix: "VITE_",
   plugins: [
     react({
       plugins: [...conditionalPlugins],
     }),
     tempo(),
   ],
+  base: "/",
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
