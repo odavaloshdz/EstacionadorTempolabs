@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import type { AuthUser, UserRole } from "@/types/auth";
 
@@ -26,6 +26,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
   const [authError, setAuthError] = useState<Error | null>(null);
+  // Referencia para controlar eventos de autenticación duplicados
+  const lastAuthEvent = useRef<{ event: string; timestamp: number } | null>(null);
+  // Referencia para controlar si el componente está montado
+  const isMounted = useRef(true);
+  // Referencia para controlar si estamos en proceso de inicialización
+  const isInitializing = useRef(false);
 
   // Función para resetear el estado de autenticación
   const resetAuthState = () => {
@@ -34,9 +40,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setInitialized(false);
     setAuthError(null);
     setUser(null);
+    lastAuthEvent.current = null;
+    isInitializing.current = false;
+    
+    // Limpiamos cualquier dato de sesión en localStorage que pueda estar causando problemas
+    localStorage.removeItem("supabase.auth.token");
+    
     // Inmediatamente inicializamos de nuevo
     setTimeout(() => {
-      setInitialized(false);
+      if (isMounted.current) {
+        initializeAuth();
+      }
     }, 100);
   };
 
@@ -197,14 +211,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Comprobamos el resultado
       if ('timeout' in result && result.timeout) {
         console.warn("Using fallback user due to timeout");
-        setUser(result.fallbackUser);
-        setLoading(false);
+        if (isMounted.current) {
+          setUser(result.fallbackUser);
+          setLoading(false);
+        }
         return;
       }
       
       if ('error' in result && result.error) {
         console.error("Error in profile loading:", result.error);
         // Creamos un usuario básico para que la aplicación funcione
+        if (isMounted.current) {
+          setUser({
+            id: userId,
+            first_name: userEmail.split('@')[0],
+            last_name: "",
+            email: userEmail,
+            role: "employee" as UserRole,
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+          setLoading(false);
+        }
+        return;
+      }
+      
+      if ('user' in result && result.user) {
+        if (isMounted.current) {
+          setUser(result.user);
+          setLoading(false);
+        }
+        return;
+      }
+      
+      // Si llegamos aquí, algo inesperado ocurrió
+      console.error("Unexpected result in loadUserProfile", result);
+      if (isMounted.current) {
+        setUser(null);
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error("Error loading user profile:", error);
+      // En caso de error, creamos un usuario básico para que la aplicación funcione
+      if (isMounted.current) {
         setUser({
           id: userId,
           first_name: userEmail.split('@')[0],
@@ -216,116 +266,136 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           updated_at: new Date().toISOString()
         });
         setLoading(false);
+      }
+    }
+  };
+
+  // Función para evitar procesar eventos duplicados
+  const shouldProcessAuthEvent = (event: string) => {
+    const now = Date.now();
+    
+    // Si es el mismo evento en menos de 2 segundos, lo ignoramos
+    if (lastAuthEvent.current && 
+        lastAuthEvent.current.event === event && 
+        now - lastAuthEvent.current.timestamp < 2000) {
+      console.log(`Ignoring duplicate auth event: ${event}`);
+      return false;
+    }
+    
+    // Actualizar el último evento
+    lastAuthEvent.current = { event, timestamp: now };
+    return true;
+  };
+
+  // Función para inicializar la autenticación
+  const initializeAuth = async () => {
+    // Evitar inicializaciones múltiples simultáneas
+    if (isInitializing.current || !isMounted.current) {
+      console.log("Already initializing or component unmounted, skipping");
+      return;
+    }
+    
+    if (initialized) {
+      console.log("Auth already initialized, skipping");
+      return;
+    }
+    
+    isInitializing.current = true;
+    
+    try {
+      setLoading(true);
+      console.log("Initializing auth...");
+      
+      // Crear un timeout para evitar que la inicialización quede atascada
+      const initTimeout = setTimeout(() => {
+        if (isMounted.current && loading) {
+          console.warn("Auth initialization timeout reached, resetting state");
+          setUser(null);
+          setLoading(false);
+          setInitialized(true);
+          setAuthError(new Error("Auth initialization timeout"));
+          isInitializing.current = false;
+        }
+      }, 8000);
+      
+      const {
+        data: { session },
+        error: sessionError
+      } = await supabase.auth.getSession();
+      
+      // Limpiar el timeout ya que la operación completó
+      clearTimeout(initTimeout);
+      
+      if (sessionError) {
+        console.error("Session error:", sessionError);
+        if (isMounted.current) {
+          setUser(null);
+          setLoading(false);
+          setInitialized(true);
+          setAuthError(sessionError);
+        }
+        isInitializing.current = false;
         return;
       }
       
-      if ('user' in result && result.user) {
-        setUser(result.user);
+      console.log("Session retrieved:", session ? "Yes" : "No");
+      
+      if (session?.user && isMounted.current) {
+        console.log("Loading user profile for:", session.user.email);
+        await loadUserProfile(session.user.id, session.user.email!);
+      } else if (isMounted.current) {
+        console.log("No session, setting user to null");
+        setUser(null);
         setLoading(false);
-        return;
       }
       
-      // Si llegamos aquí, algo inesperado ocurrió
-      console.error("Unexpected result in loadUserProfile", result);
-      setUser(null);
-      setLoading(false);
+      if (isMounted.current) {
+        console.log("Setting initialized to true");
+        setInitialized(true);
+      }
     } catch (error) {
-      console.error("Error loading user profile:", error);
-      // En caso de error, creamos un usuario básico para que la aplicación funcione
-      setUser({
-        id: userId,
-        first_name: userEmail.split('@')[0],
-        last_name: "",
-        email: userEmail,
-        role: "employee" as UserRole,
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
-      setLoading(false);
+      console.error("Error initializing auth:", error);
+      if (isMounted.current) {
+        setUser(null);
+        setLoading(false);
+        setInitialized(true);
+        setAuthError(error instanceof Error ? error : new Error("Unknown error"));
+      }
+    } finally {
+      isInitializing.current = false;
     }
   };
 
   useEffect(() => {
     console.log("AuthProvider useEffect running, initialized:", initialized);
-    let mounted = true;
+    isMounted.current = true;
 
-    const initializeAuth = async () => {
-      if (initialized) return;
-      try {
-        setLoading(true);
-        console.log("Initializing auth...");
-        
-        // Crear un timeout para evitar que la inicialización quede atascada
-        const initTimeout = setTimeout(() => {
-          if (mounted && loading) {
-            console.warn("Auth initialization timeout reached, resetting state");
-            setUser(null);
-            setLoading(false);
-            setInitialized(true);
-            setAuthError(new Error("Auth initialization timeout"));
-          }
-        }, 8000);
-        
-        const {
-          data: { session },
-          error: sessionError
-        } = await supabase.auth.getSession();
-        
-        // Limpiar el timeout ya que la operación completó
-        clearTimeout(initTimeout);
-        
-        if (sessionError) {
-          console.error("Session error:", sessionError);
-          if (mounted) {
-            setUser(null);
-            setLoading(false);
-            setInitialized(true);
-            setAuthError(sessionError);
-          }
-          return;
-        }
-        
-        console.log("Session retrieved:", session ? "Yes" : "No");
-        
-        if (session?.user && mounted) {
-          console.log("Loading user profile for:", session.user.email);
-          await loadUserProfile(session.user.id, session.user.email!);
-        } else if (mounted) {
-          console.log("No session, setting user to null");
-          setUser(null);
-          setLoading(false);
-        }
-        
-        if (mounted) {
-          console.log("Setting initialized to true");
-          setInitialized(true);
-        }
-      } catch (error) {
-        console.error("Error initializing auth:", error);
-        if (mounted) {
-          setUser(null);
-          setLoading(false);
-          setInitialized(true);
-          setAuthError(error instanceof Error ? error : new Error("Unknown error"));
-        }
-      }
-    };
-
+    // Inicializar autenticación
     initializeAuth();
 
+    // Suscribirse a cambios de estado de autenticación
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // Evitar procesar eventos duplicados
+      if (!shouldProcessAuthEvent(event)) return;
+      
       console.log("Auth state changed:", event, session?.user?.email);
-      if (session?.user && mounted) {
+      
+      // Ignorar eventos INITIAL_SESSION si ya estamos inicializados
+      if (event === 'INITIAL_SESSION' && initialized) {
+        console.log("Ignoring INITIAL_SESSION event as we're already initialized");
+        return;
+      }
+      
+      if (session?.user && isMounted.current) {
         try {
           console.log("Loading user profile after auth state change");
           setLoading(true);
           
           // Establecer un timeout para cargar el perfil
           const profileTimeout = setTimeout(() => {
-            if (mounted && loading) {
+            if (isMounted.current && loading) {
               console.warn("Profile loading timeout in auth state change");
               // Crear un usuario genérico y continuar
               setUser({
@@ -348,12 +418,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           clearTimeout(profileTimeout);
         } catch (error) {
           console.error("Error in auth state change:", error);
-          if (mounted) {
+          if (isMounted.current) {
             setUser(null);
             setLoading(false);
           }
         }
-      } else if (mounted) {
+      } else if (isMounted.current) {
         console.log("No session in auth state change, setting user to null");
         setUser(null);
         setLoading(false);
@@ -362,10 +432,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       console.log("Cleaning up AuthProvider effect");
-      mounted = false;
+      isMounted.current = false;
       subscription.unsubscribe();
     };
-  }, [initialized, loading]);
+  }, [initialized]);
 
   const signIn = async (email: string, password: string) => {
     try {

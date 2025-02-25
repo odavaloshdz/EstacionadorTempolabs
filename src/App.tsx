@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useRef } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import LandingPage from "@/pages/LandingPage";
@@ -12,89 +12,109 @@ import SessionRecovery from "@/components/SessionRecovery";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 
-const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
-  const [loadingTimeout, setLoadingTimeout] = useState(false);
-  const [longLoadingTimeout, setLongLoadingTimeout] = useState(false);
+function PrivateRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading, resetAuthState } = useAuth();
   const navigate = useNavigate();
+  const [showLoading, setShowLoading] = useState(false);
+  const [showRecoveryOption, setShowRecoveryOption] = useState(false);
+  const loadingTimerRef = useRef<number | null>(null);
+  const recoveryTimerRef = useRef<number | null>(null);
+  const attemptCountRef = useRef(0);
 
   useEffect(() => {
     console.log("PrivateRoute effect - loading:", loading, "user:", user ? "exists" : "null");
     
-    // Si el estado de carga dura más de 3 segundos, mostramos un mensaje más informativo
-    const timer = setTimeout(() => {
-      if (loading) {
-        console.log("Loading timeout reached (3s)");
-        setLoadingTimeout(true);
-      }
-    }, 3000);
+    // Limpiar timers existentes
+    if (loadingTimerRef.current) {
+      clearTimeout(loadingTimerRef.current);
+      loadingTimerRef.current = null;
+    }
     
-    // Si el estado de carga dura más de 10 segundos, redirigimos a la página de recuperación
-    const longTimer = setTimeout(() => {
-      if (loading) {
-        console.log("Long loading timeout reached (10s)");
-        setLongLoadingTimeout(true);
-        // Redirigir a la página de recuperación de sesión después de 10 segundos
-        navigate("/recovery", { replace: true });
-      }
-    }, 10000);
+    if (recoveryTimerRef.current) {
+      clearTimeout(recoveryTimerRef.current);
+      recoveryTimerRef.current = null;
+    }
+
+    // Si está cargando, configuramos timers para mostrar mensajes
+    if (loading) {
+      attemptCountRef.current += 1;
+      setShowLoading(false);
+      setShowRecoveryOption(false);
+      
+      // Después de 3 segundos, mostrar mensaje de carga
+      loadingTimerRef.current = window.setTimeout(() => {
+        if (loading) {
+          setShowLoading(true);
+        }
+      }, 3000);
+      
+      // Después de 10 segundos, mostrar opción de recuperación
+      recoveryTimerRef.current = window.setTimeout(() => {
+        if (loading) {
+          setShowRecoveryOption(true);
+          
+          // Si han pasado más de 3 intentos, intentar resetear el estado de autenticación
+          if (attemptCountRef.current > 3) {
+            console.log("Too many loading attempts, resetting auth state");
+            resetAuthState();
+            attemptCountRef.current = 0;
+          }
+        }
+      }, 10000);
+    } else {
+      setShowLoading(false);
+      setShowRecoveryOption(false);
+    }
 
     return () => {
-      clearTimeout(timer);
-      clearTimeout(longTimer);
+      // Limpiar timers al desmontar
+      if (loadingTimerRef.current) {
+        clearTimeout(loadingTimerRef.current);
+      }
+      if (recoveryTimerRef.current) {
+        clearTimeout(recoveryTimerRef.current);
+      }
     };
-  }, [loading, user, navigate]);
-
-  // Verificar la sesión directamente como respaldo
-  useEffect(() => {
-    if (loading && loadingTimeout) {
-      console.log("Checking session directly as backup");
-      const checkSession = async () => {
-        try {
-          const { data, error } = await supabase.auth.getSession();
-          console.log("Direct session check:", data.session ? "session exists" : "no session", error);
-          
-          if (error || !data.session) {
-            console.log("No valid session found, redirecting to login");
-            navigate("/login", { replace: true });
-          }
-        } catch (e) {
-          console.error("Error checking session:", e);
-        }
-      };
-      
-      checkSession();
-    }
-  }, [loadingTimeout, loading, navigate]);
+  }, [loading, user, navigate, resetAuthState]);
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
-        <div className="text-lg font-medium">Cargando...</div>
-        {loadingTimeout && (
-          <div className="mt-4 text-sm text-gray-500 max-w-md text-center">
-            Esto está tomando más tiempo de lo esperado. 
-            <button 
-              onClick={() => navigate("/recovery")}
-              className="ml-2 text-primary underline"
-            >
-              Ir a recuperación
-            </button>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+        <div className="text-center p-8 max-w-md">
+          <div className="mb-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
           </div>
-        )}
+          {showLoading && (
+            <div className="mt-4">
+              <p className="text-gray-600 mb-4">
+                Cargando la aplicación...
+              </p>
+              {showRecoveryOption && (
+                <div className="mt-4">
+                  <p className="text-amber-600 mb-2">
+                    Está tomando más tiempo de lo esperado.
+                  </p>
+                  <button
+                    onClick={() => navigate('/recovery')}
+                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                  >
+                    Ir a recuperación de sesión
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
 
   if (!user) {
-    console.log("No user found, redirecting to login");
     return <Navigate to="/login" replace />;
   }
 
-  console.log("User authenticated, rendering protected content");
   return <>{children}</>;
-};
+}
 
 const AppRoutes = () => (
   <Routes>
