@@ -1,4 +1,4 @@
-export type VehicleType = "auto" | "moto" | "camioneta" | "camion" | "van";
+export type VehicleType = "auto" | "moto" | "camioneta" | "otro";
 
 export interface VehicleInfo {
   plate: string;

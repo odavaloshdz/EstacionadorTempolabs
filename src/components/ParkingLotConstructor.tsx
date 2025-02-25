@@ -4,6 +4,7 @@ import ParkingSpace from "./ParkingSpace";
 import { Button } from "@/components/ui/button";
 import { Plus, Minus, ChevronLeft, ChevronRight } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { VehicleType } from "@/types/parking";
 
 interface ParkingLotConstructorProps {
   rows?: number;
@@ -12,7 +13,7 @@ interface ParkingLotConstructorProps {
   spaces?: Array<{
     id: string;
     isOccupied: boolean;
-    vehicleType?: "auto" | "moto" | "camioneta" | "camion" | "van";
+    vehicleType?: VehicleType;
   }>;
 }
 
@@ -68,6 +69,21 @@ const ParkingLotConstructor = ({
 
   const handleZoomOut = () => {
     setZoom((prev) => Math.max(prev - 0.2, 0.5));
+  };
+
+  const getVehicleTypeColor = (type?: string) => {
+    switch (type) {
+      case "auto":
+        return "bg-blue-100";
+      case "moto":
+        return "bg-green-100";
+      case "camioneta":
+        return "bg-yellow-100";
+      case "otro":
+        return "bg-purple-100";
+      default:
+        return "bg-gray-100";
+    }
   };
 
   return (

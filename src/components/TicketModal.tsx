@@ -35,8 +35,7 @@ const vehicleTypes: VehicleType[] = [
   "auto",
   "moto",
   "camioneta",
-  "camion",
-  "van",
+  "otro"
 ];
 
 const TicketModal = ({
@@ -76,8 +75,7 @@ const TicketModal = ({
       auto: settings.rate_auto || 10,
       moto: settings.rate_moto || 5,
       camioneta: settings.rate_camioneta || 15,
-      camion: settings.rate_camion || 20,
-      van: settings.rate_van || 15,
+      otro: settings.rate_auto || 10, // Usar la tarifa de auto como predeterminada para "otro"
     };
 
     return hours * (rates[formData.type] || rates.auto);

@@ -6,14 +6,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Car, Bike, Truck, Bus } from "lucide-react";
+import { Car, Bike, Truck, HelpCircle } from "lucide-react";
+import { VehicleType } from "@/types/parking";
 
 interface ParkingSpaceProps {
   spaceNumber?: string;
   isOccupied?: boolean;
   onClick?: () => void;
   className?: string;
-  vehicleType?: "auto" | "moto" | "camioneta" | "camion" | "van";
+  vehicleType?: VehicleType;
 }
 
 const ParkingSpace = ({
@@ -28,10 +29,9 @@ const ParkingSpace = ({
       case "moto":
         return Bike;
       case "camioneta":
-      case "van":
         return Truck;
-      case "camion":
-        return Bus;
+      case "otro":
+        return HelpCircle;
       default:
         return Car;
     }
