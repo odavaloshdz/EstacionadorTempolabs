@@ -1,6 +1,7 @@
 import LoginForm from "@/components/auth/LoginForm";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
+import AuthLayout from "@/components/layout/AuthLayout";
 
 export default function LoginPage() {
   const { user } = useAuth();
@@ -10,8 +11,17 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <AuthLayout
+      title="Iniciar Sesión"
+      subtitle="Accede a tu cuenta para gestionar tus estacionamientos"
+      footerText="¿No tienes una cuenta?"
+      footerLink={{
+        text: "¿No tienes una cuenta?",
+        href: "/register",
+        label: "Regístrate ahora",
+      }}
+    >
       <LoginForm />
-    </div>
+    </AuthLayout>
   );
 }

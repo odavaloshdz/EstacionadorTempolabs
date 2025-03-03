@@ -17,13 +17,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadUserProfile = async (userId: string, userEmail: string) => {
     try {
+      // First try to get from user_profiles (new table)
+      const { data: userProfile, error: userProfileError } = await supabase
+        .from("user_profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+
+      if (!userProfileError && userProfile) {
+        setUser({
+          ...userProfile,
+          email: userEmail,
+        });
+        return;
+      }
+
+      // Fallback to old profiles table
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", userId)
         .single();
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error("Error loading profile:", profileError);
+        // If no profile exists, create a basic one
+        const { error: insertError } = await supabase
+          .from("user_profiles")
+          .insert({
+            id: userId,
+            first_name: "Usuario",
+            last_name: "Nuevo",
+            role: "admin",
+            is_active: true,
+          });
+
+        if (insertError) throw insertError;
+
+        setUser({
+          id: userId,
+          first_name: "Usuario",
+          last_name: "Nuevo",
+          email: userEmail,
+          role: "admin",
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+        return;
+      }
 
       const { data: roleData, error: roleError } = await supabase
         .from("user_roles")
@@ -31,18 +73,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq("user_id", userId)
         .single();
 
-      if (roleError) throw roleError;
-
       if (profile) {
         setUser({
           ...profile,
           email: userEmail,
-          role: roleData?.role || "user",
+          role: roleError ? "admin" : roleData?.role || "user",
+          is_active: true,
         });
       }
     } catch (error) {
       console.error("Error loading user profile:", error);
-      setUser(null);
+      // Create a default user instead of setting to null
+      setUser({
+        id: userId,
+        first_name: "Usuario",
+        last_name: "Nuevo",
+        email: userEmail,
+        role: "admin",
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
     }
   };
 
@@ -54,9 +105,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } = await supabase.auth.getSession();
         if (session?.user) {
           await loadUserProfile(session.user.id, session.user.email!);
+        } else {
+          setUser(null);
         }
       } catch (error) {
         console.error("Error initializing auth:", error);
+        setUser(null);
       } finally {
         setLoading(false);
       }

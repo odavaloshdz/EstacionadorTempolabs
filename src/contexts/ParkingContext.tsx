@@ -40,19 +40,21 @@ export function ParkingProvider({ children }: { children: ReactNode }) {
       try {
         setLoading(true);
         setError(null);
+        console.log("Loading parking lots...");
 
         const { data, error } = await supabase
           .from("parking_lots")
           .select("*")
-          .eq("status", "active")
           .order("name");
 
         if (error) throw error;
 
+        console.log("Parking lots loaded:", data?.length || 0);
         setParkingLots(data || []);
 
         // Si hay estacionamientos y no hay uno seleccionado, seleccionamos el primero
         if (data && data.length > 0 && !selectedParkingLotId) {
+          console.log("Setting default parking lot ID:", data[0].id);
           setSelectedParkingLotId(data[0].id);
         }
       } catch (err) {

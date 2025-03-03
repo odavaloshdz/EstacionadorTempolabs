@@ -33,6 +33,10 @@ export default function ParkingLotSelector({
     const loadParkingLots = async () => {
       try {
         setLoading(true);
+        console.log(
+          "ParkingLotSelector: Loading parking lots for user:",
+          user?.id,
+        );
 
         // Primero verificamos si el usuario tiene acceso a múltiples estacionamientos
         const { data: companyUser, error: companyUserError } = await supabase
@@ -41,14 +45,13 @@ export default function ParkingLotSelector({
           .eq("user_id", user?.id)
           .single();
 
-        if (companyUserError && companyUserError.code !== "PGRST116") {
-          throw companyUserError;
-        }
+        console.log("Company user data:", companyUser, companyUserError);
 
+        // Obtener todos los estacionamientos sin filtros inicialmente
         let query = supabase.from("parking_lots").select("*");
 
         // Si el usuario está asignado a una empresa
-        if (companyUser) {
+        if (companyUser && !companyUserError) {
           // Si el usuario tiene un estacionamiento específico asignado
           if (
             companyUser.assigned_parking_lot_id &&
@@ -66,11 +69,73 @@ export default function ParkingLotSelector({
 
         if (error) throw error;
 
+        console.log("Parking lots loaded:", data?.length || 0);
         setParkingLots(data || []);
 
         // Si hay estacionamientos y no hay uno seleccionado, seleccionamos el primero
         if (data && data.length > 0 && !selectedParkingLotId) {
+          console.log("Selecting first parking lot:", data[0].id);
           onSelect(data[0].id);
+        }
+
+        // Si no hay estacionamientos, crear uno por defecto
+        if (!data || data.length === 0) {
+          console.log("No parking lots found, creating default");
+
+          // Crear una empresa por defecto
+          const { data: company, error: companyError } = await supabase
+            .from("companies")
+            .insert({
+              name: "Empresa por defecto",
+              status: "active",
+              subscription_status: "active",
+            })
+            .select()
+            .single();
+
+          console.log("Default company created:", company, companyError);
+
+          if (company && !companyError) {
+            // Crear un estacionamiento por defecto
+            const { data: parkingLot, error: parkingLotError } = await supabase
+              .from("parking_lots")
+              .insert({
+                name: "Estacionamiento Principal",
+                capacity: 150,
+                hourly_rate: 10,
+                company_id: company.id,
+                status: "active",
+                address: "Dirección por defecto",
+              })
+              .select()
+              .single();
+
+            console.log(
+              "Default parking lot created:",
+              parkingLot,
+              parkingLotError,
+            );
+
+            if (parkingLot && !parkingLotError) {
+              // Asignar al usuario a la empresa
+              const { error: userCompanyError } = await supabase
+                .from("company_users")
+                .insert({
+                  user_id: user?.id,
+                  company_id: company.id,
+                  role: "admin",
+                  can_select_parking_lots: true,
+                });
+
+              console.log(
+                "User assigned to company:",
+                userCompanyError ? "Error" : "Success",
+              );
+
+              // Recargar los estacionamientos después de un breve retraso
+              setTimeout(() => loadParkingLots(), 500);
+            }
+          }
         }
       } catch (error) {
         console.error("Error loading parking lots:", error);

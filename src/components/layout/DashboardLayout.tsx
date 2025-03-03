@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { useParking } from "@/contexts/ParkingContext";
 import { useNavigate } from "react-router-dom";
 import {
   LayoutGrid,
@@ -12,6 +13,7 @@ import {
   Users,
   Building2,
 } from "lucide-react";
+import { Logo } from "@/components/ui/logo";
 import { usePermissions } from "@/hooks/usePermissions";
 import ParkingLotSelector from "@/components/ParkingLotSelector";
 
@@ -22,7 +24,7 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [selectedParkingLotId, setSelectedParkingLotId] = useState<string>();
+  const { selectedParkingLotId, setSelectedParkingLotId } = useParking();
   const { signOut, user } = useAuth();
   const { hasPermission } = usePermissions();
   const navigate = useNavigate();
@@ -57,12 +59,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const handleParkingLotChange = (parkingLotId: string) => {
     setSelectedParkingLotId(parkingLotId);
-    // Aquí podríamos guardar la selección en localStorage o en un contexto global
-    localStorage.setItem("selectedParkingLotId", parkingLotId);
-    // Recargar los datos del dashboard
-    window.dispatchEvent(
-      new CustomEvent("parking-lot-changed", { detail: parkingLotId }),
-    );
   };
 
   return (
@@ -77,11 +73,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       >
         <div className="flex flex-col h-full">
           <div className="h-16 flex items-center justify-between px-4 border-b">
-            <span
-              className={cn("font-bold text-xl", !isSidebarOpen && "hidden")}
+            <div
+              className={cn("flex items-center", !isSidebarOpen && "hidden")}
             >
-              Estacionador
-            </span>
+              <Logo />
+            </div>
             <Button
               variant="ghost"
               size="icon"
@@ -139,7 +135,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Mobile header */}
       <div className="md:hidden border-b bg-white">
         <div className="flex items-center justify-between p-4">
-          <span className="font-bold text-xl">Estacionador</span>
+          <Logo />
           <Button
             variant="ghost"
             size="icon"

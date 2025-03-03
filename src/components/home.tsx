@@ -4,6 +4,7 @@ import ActionPanel from "./ActionPanel";
 import TicketModal from "./TicketModal";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { useParking } from "@/contexts/ParkingContext";
 
 interface ParkingSpace {
   id: string;
@@ -22,6 +23,7 @@ interface ParkingData {
 
 export default function Home() {
   const { user } = useAuth();
+  const { selectedParkingLotId } = useParking();
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [isEntryTicket, setIsEntryTicket] = useState(true);
   const [selectedSpace, setSelectedSpace] = useState<string | null>(null);
@@ -31,52 +33,114 @@ export default function Home() {
   });
 
   const loadParkingSpaces = async () => {
-    // Obtener el estacionamiento seleccionado del localStorage
-    const selectedParkingLotId = localStorage.getItem("selectedParkingLotId");
+    if (!selectedParkingLotId) return;
 
-    const { data: spaces, error } = await supabase
-      .from("parking_spaces")
-      .select("*")
-      .eq(
-        "parking_lot_id",
-        selectedParkingLotId || "00000000-0000-0000-0000-000000000000",
-      )
-      .order("space_number");
+    console.log("Loading parking spaces for ID:", selectedParkingLotId);
 
-    if (error) {
-      console.error("Error loading parking spaces:", error);
-      return;
-    }
+    try {
+      // Primero verificamos si hay espacios para este estacionamiento
+      const { data: spaces, error } = await supabase
+        .from("parking_spaces")
+        .select("*")
+        .eq("parking_lot_id", selectedParkingLotId)
+        .order("space_number");
 
-    if (spaces) {
-      const formattedSpaces = spaces.map((space) => ({
-        id: space.space_number,
-        isOccupied: space.is_occupied || false,
-        vehicleType: space.vehicle_type || "auto",
-      }));
+      console.log("Spaces found:", spaces?.length || 0, "Error:", error);
 
-      const occupiedCount = formattedSpaces.filter((s) => s.isOccupied).length;
+      // Si no hay espacios, creamos algunos por defecto
+      if (!spaces || spaces.length === 0) {
+        // Obtener la configuración del estacionamiento si existe
+        const { data: settings, error: settingsError } = await supabase
+          .from("parking_settings")
+          .select("*")
+          .eq("id", selectedParkingLotId)
+          .single();
 
-      setParkingData({
-        spaces: formattedSpaces,
-        stats: {
-          totalSpaces: formattedSpaces.length,
-          availableSpaces: formattedSpaces.length - occupiedCount,
-          occupiedSpaces: occupiedCount,
-        },
-      });
+        console.log("Settings found:", settings, "Error:", settingsError);
+
+        // Si no hay configuración, intentamos obtener datos del parking_lot directamente
+        let totalSpaces = 50;
+        if (!settings && settingsError) {
+          const { data: parkingLot } = await supabase
+            .from("parking_lots")
+            .select("capacity")
+            .eq("id", selectedParkingLotId)
+            .single();
+
+          if (parkingLot) {
+            totalSpaces = parkingLot.capacity || 50;
+          }
+          console.log("Using parking lot capacity:", totalSpaces);
+        } else if (settings) {
+          totalSpaces = settings.total_spaces || 50;
+          console.log("Using settings total_spaces:", totalSpaces);
+        }
+
+        // Crear espacios por defecto
+        const defaultSpaces = Array(totalSpaces)
+          .fill(null)
+          .map((_, index) => ({
+            space_number: `A${(index + 1).toString().padStart(3, "0")}`,
+            is_occupied: false,
+            parking_lot_id: selectedParkingLotId,
+            vehicle_type: null,
+          }));
+
+        console.log("Creating default spaces:", defaultSpaces.length);
+
+        const { error: insertError } = await supabase
+          .from("parking_spaces")
+          .insert(defaultSpaces);
+
+        if (insertError) {
+          console.error("Error inserting spaces:", insertError);
+        } else {
+          console.log("Successfully created spaces");
+          // Volver a cargar los espacios
+          return loadParkingSpaces();
+        }
+      }
+
+      if (error) {
+        console.error("Error loading parking spaces:", error);
+        return;
+      }
+
+      if (spaces) {
+        const formattedSpaces = spaces.map((space) => ({
+          id: space.space_number,
+          isOccupied: space.is_occupied || false,
+          vehicleType: space.vehicle_type || "auto",
+        }));
+
+        const occupiedCount = formattedSpaces.filter(
+          (s) => s.isOccupied,
+        ).length;
+
+        setParkingData({
+          spaces: formattedSpaces,
+          stats: {
+            totalSpaces: formattedSpaces.length,
+            availableSpaces: formattedSpaces.length - occupiedCount,
+            occupiedSpaces: occupiedCount,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Error in loadParkingSpaces:", error);
     }
   };
 
   useEffect(() => {
-    loadParkingSpaces();
-
-    // Escuchar cambios de estacionamiento seleccionado
-    const handleParkingLotChange = () => {
+    if (selectedParkingLotId) {
       loadParkingSpaces();
-    };
-
-    window.addEventListener("parking-lot-changed", handleParkingLotChange);
+    } else {
+      // Si no hay estacionamiento seleccionado, mostrar espacios vacíos
+      setParkingData({
+        spaces: [],
+        stats: { totalSpaces: 0, availableSpaces: 0, occupiedSpaces: 0 },
+      });
+    }
 
     const channel = supabase.channel("parking_spaces");
 
@@ -105,9 +169,8 @@ export default function Home() {
     return () => {
       channel.unsubscribe();
       authSubscription.unsubscribe();
-      window.removeEventListener("parking-lot-changed", handleParkingLotChange);
     };
-  }, []);
+  }, [selectedParkingLotId]);
 
   const handleSpaceClick = (spaceId: string) => {
     const space = parkingData.spaces.find((s) => s.id === spaceId);
@@ -132,10 +195,7 @@ export default function Home() {
 
         if (spaceError) throw spaceError;
 
-        // Obtener el estacionamiento seleccionado del localStorage
-        const selectedParkingLotId =
-          localStorage.getItem("selectedParkingLotId") ||
-          "00000000-0000-0000-0000-000000000000";
+        if (!selectedParkingLotId) return;
 
         const { error: ticketError } = await supabase.from("tickets").insert({
           ticket_number: ticketData.ticketNumber,
@@ -279,6 +339,8 @@ export default function Home() {
             ticketNumber: `T-${Date.now()}`,
             entryTime: new Date().toLocaleString(),
             licensePlate: "",
+            billingType: "hourly",
+            parkingLotId: selectedParkingLotId || "",
             ...(isEntryTicket
               ? {}
               : {

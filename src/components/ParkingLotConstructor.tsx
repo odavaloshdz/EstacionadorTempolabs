@@ -40,6 +40,8 @@ const ParkingLotConstructor = ({
 
   // Calcular dimensiones óptimas de la cuadrícula
   useEffect(() => {
+    if (spaces.length === 0) return;
+
     const totalSpaces = getCurrentPageSpaces().length;
     const aspectRatio = 16 / 9; // Proporción aproximada de la pantalla
 
@@ -80,12 +82,12 @@ const ParkingLotConstructor = ({
               variant="outline"
               size="icon"
               onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
+              disabled={currentPage === 1 || totalPages === 0}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span className="flex items-center px-2 text-sm">
-              Página {currentPage} de {totalPages}
+              Página {totalPages > 0 ? currentPage : 0} de {totalPages}
             </span>
             <Button
               variant="outline"
@@ -93,7 +95,7 @@ const ParkingLotConstructor = ({
               onClick={() =>
                 setCurrentPage((prev) => Math.min(prev + 1, totalPages))
               }
-              disabled={currentPage === totalPages}
+              disabled={currentPage === totalPages || totalPages === 0}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -121,30 +123,41 @@ const ParkingLotConstructor = ({
       </div>
 
       <div className="flex-1 overflow-auto">
-        <div
-          className="grid gap-4 p-4"
-          style={{
-            transform: `scale(${zoom})`,
-            transformOrigin: "top left",
-            gridTemplateColumns: `repeat(${gridDimensions.width}, minmax(120px, 1fr))`,
-            gridGap: "1rem",
-            width: `${100 / zoom}%`,
-          }}
-        >
-          {getCurrentPageSpaces().map((space) => (
-            <ParkingSpace
-              key={space.id}
-              spaceNumber={space.id}
-              isOccupied={space.isOccupied}
-              vehicleType={space.vehicleType}
-              onClick={() => onSpaceClick(space.id)}
-              className={cn(
-                "transition-transform hover:scale-105",
-                "shadow-sm hover:shadow-md",
-              )}
-            />
-          ))}
-        </div>
+        {spaces.length === 0 ? (
+          <div className="h-full flex items-center justify-center flex-col">
+            <p className="text-gray-500 mb-4">
+              No hay espacios configurados para este estacionamiento
+            </p>
+            <p className="text-sm text-gray-400">
+              Vaya a Configuración para crear espacios
+            </p>
+          </div>
+        ) : (
+          <div
+            className="grid gap-4 p-4"
+            style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: "top left",
+              gridTemplateColumns: `repeat(${gridDimensions.width}, minmax(120px, 1fr))`,
+              gridGap: "1rem",
+              width: `${100 / zoom}%`,
+            }}
+          >
+            {getCurrentPageSpaces().map((space) => (
+              <ParkingSpace
+                key={space.id}
+                spaceNumber={space.id}
+                isOccupied={space.isOccupied}
+                vehicleType={space.vehicleType}
+                onClick={() => onSpaceClick(space.id)}
+                className={cn(
+                  "transition-transform hover:scale-105",
+                  "shadow-sm hover:shadow-md",
+                )}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

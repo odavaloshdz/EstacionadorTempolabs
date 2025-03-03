@@ -70,7 +70,11 @@ export default function LoginForm() {
             </div>
           </div>
           {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button
+            type="submit"
+            className="w-full bg-blue-600 hover:bg-blue-700"
+            disabled={loading}
+          >
             {loading ? "Ingresando..." : "Ingresar"}
           </Button>
         </form>

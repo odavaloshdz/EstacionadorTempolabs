@@ -142,7 +142,11 @@ export default function RegisterForm() {
 
           {error && <p className="text-sm text-red-500">{error}</p>}
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button
+            type="submit"
+            className="w-full bg-blue-600 hover:bg-blue-700"
+            disabled={loading}
+          >
             {loading ? "Registrando..." : "Registrarse"}
           </Button>
         </form>

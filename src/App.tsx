@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ParkingProvider } from "@/contexts/ParkingContext";
 import LandingPage from "@/pages/LandingPage";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
@@ -15,7 +16,11 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div>Cargando...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        Cargando...
+      </div>
+    );
   }
 
   if (!user) {
@@ -77,9 +82,11 @@ const AppRoutes = () => (
 export default function App() {
   return (
     <AuthProvider>
-      <Suspense fallback={<div>Cargando...</div>}>
-        <AppRoutes />
-      </Suspense>
+      <ParkingProvider>
+        <Suspense fallback={<div>Cargando...</div>}>
+          <AppRoutes />
+        </Suspense>
+      </ParkingProvider>
     </AuthProvider>
   );
 }

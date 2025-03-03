@@ -6,10 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { CarFront, DollarSign, Hash } from "lucide-react";
+import { useParking } from "@/contexts/ParkingContext";
+import { useToast } from "@/components/ui/use-toast";
 
 const DEFAULT_SETTINGS_ID = "00000000-0000-0000-0000-000000000000";
 
 export default function SettingsPage() {
+  const { selectedParkingLotId } = useParking();
+  const { toast } = useToast();
   const [rates, setRates] = useState({
     auto: 10,
     moto: 5,
@@ -34,15 +38,63 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const loadSettings = async () => {
-      // Obtener el estacionamiento seleccionado del localStorage
-      const selectedParkingLotId =
-        localStorage.getItem("selectedParkingLotId") || DEFAULT_SETTINGS_ID;
+      if (!selectedParkingLotId) return;
 
-      const { data: settings } = await supabase
+      console.log("Loading settings for parking lot ID:", selectedParkingLotId);
+
+      // Primero verificamos si existe configuración para este estacionamiento
+      let { data: settings, error } = await supabase
         .from("parking_settings")
         .select("*")
         .eq("id", selectedParkingLotId)
         .single();
+
+      console.log("Settings query result:", settings, error);
+
+      // Si no existe, intentamos crear una configuración por defecto
+      if (error) {
+        console.log("Creating default settings");
+        const { data: parkingLot, error: parkingLotError } = await supabase
+          .from("parking_lots")
+          .select("name, capacity, hourly_rate")
+          .eq("id", selectedParkingLotId)
+          .single();
+
+        console.log("Parking lot data:", parkingLot, parkingLotError);
+
+        if (parkingLot) {
+          const defaultSettings = {
+            id: selectedParkingLotId,
+            name: parkingLot.name,
+            total_spaces: parkingLot.capacity || 50,
+            rows: 5,
+            columns: 10,
+            rate_auto: parkingLot.hourly_rate || 10,
+            rate_moto: parkingLot.hourly_rate / 2 || 5,
+            rate_camioneta: parkingLot.hourly_rate * 1.5 || 15,
+            rate_camion: parkingLot.hourly_rate * 2 || 20,
+            rate_van: parkingLot.hourly_rate * 1.5 || 15,
+            capacity_auto: Math.floor(parkingLot.capacity * 0.6) || 30,
+            capacity_moto: Math.floor(parkingLot.capacity * 0.2) || 10,
+            capacity_camioneta: Math.floor(parkingLot.capacity * 0.1) || 5,
+            capacity_camion: Math.floor(parkingLot.capacity * 0.05) || 3,
+            capacity_van: Math.floor(parkingLot.capacity * 0.05) || 2,
+            company_id: null,
+          };
+
+          console.log("Inserting default settings:", defaultSettings);
+          const { error: insertError } = await supabase
+            .from("parking_settings")
+            .insert([defaultSettings]);
+
+          if (insertError) {
+            console.error("Error inserting settings:", insertError);
+          } else {
+            console.log("Settings inserted successfully");
+            settings = defaultSettings;
+          }
+        }
+      }
 
       if (settings) {
         setRates({
@@ -69,8 +121,10 @@ export default function SettingsPage() {
       }
     };
 
-    loadSettings();
-  }, []);
+    if (selectedParkingLotId) {
+      loadSettings();
+    }
+  }, [selectedParkingLotId]);
 
   const handleSaveRates = async () => {
     try {
@@ -91,9 +145,7 @@ export default function SettingsPage() {
         capacity_van: parkingLot.capacityByType.van,
       };
 
-      // Obtener el estacionamiento seleccionado del localStorage
-      const selectedParkingLotId =
-        localStorage.getItem("selectedParkingLotId") || DEFAULT_SETTINGS_ID;
+      if (!selectedParkingLotId) return;
 
       const { error } = await supabase
         .from("parking_settings")
@@ -101,10 +153,17 @@ export default function SettingsPage() {
         .eq("id", selectedParkingLotId);
 
       if (error) throw error;
-      alert("Tarifas guardadas exitosamente");
+      toast({
+        title: "Tarifas guardadas",
+        description: "Las tarifas han sido actualizadas exitosamente",
+      });
     } catch (error) {
       console.error("Error saving rates:", error);
-      alert("Error al guardar las tarifas");
+      toast({
+        title: "Error",
+        description: "No se pudieron guardar las tarifas",
+        variant: "destructive",
+      });
     }
   };
 
@@ -127,9 +186,7 @@ export default function SettingsPage() {
         rate_van: rates.van,
       };
 
-      // Obtener el estacionamiento seleccionado del localStorage
-      const selectedParkingLotId =
-        localStorage.getItem("selectedParkingLotId") || DEFAULT_SETTINGS_ID;
+      if (!selectedParkingLotId) return;
 
       const { error } = await supabase
         .from("parking_settings")
@@ -142,7 +199,7 @@ export default function SettingsPage() {
       const { error: spacesError } = await supabase
         .from("parking_spaces")
         .delete()
-        .neq("id", "dummy");
+        .eq("parking_lot_id", selectedParkingLotId);
 
       if (spacesError) throw spacesError;
 
@@ -151,6 +208,7 @@ export default function SettingsPage() {
         .map((_, index) => ({
           space_number: `A${(index + 1).toString().padStart(3, "0")}`,
           is_occupied: false,
+          parking_lot_id: selectedParkingLotId,
         }));
 
       const { error: insertError } = await supabase
@@ -159,10 +217,18 @@ export default function SettingsPage() {
 
       if (insertError) throw insertError;
 
-      alert("Configuración guardada exitosamente");
+      toast({
+        title: "Configuración guardada",
+        description:
+          "La configuración del estacionamiento ha sido actualizada exitosamente",
+      });
     } catch (error) {
       console.error("Error saving parking lot settings:", error);
-      alert("Error al guardar la configuración");
+      toast({
+        title: "Error",
+        description: "No se pudo guardar la configuración del estacionamiento",
+        variant: "destructive",
+      });
     }
   };
 
