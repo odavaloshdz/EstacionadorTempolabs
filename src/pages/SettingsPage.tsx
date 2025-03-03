@@ -34,10 +34,14 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const loadSettings = async () => {
+      // Obtener el estacionamiento seleccionado del localStorage
+      const selectedParkingLotId =
+        localStorage.getItem("selectedParkingLotId") || DEFAULT_SETTINGS_ID;
+
       const { data: settings } = await supabase
         .from("parking_settings")
         .select("*")
-        .eq("id", DEFAULT_SETTINGS_ID)
+        .eq("id", selectedParkingLotId)
         .single();
 
       if (settings) {
@@ -87,10 +91,14 @@ export default function SettingsPage() {
         capacity_van: parkingLot.capacityByType.van,
       };
 
+      // Obtener el estacionamiento seleccionado del localStorage
+      const selectedParkingLotId =
+        localStorage.getItem("selectedParkingLotId") || DEFAULT_SETTINGS_ID;
+
       const { error } = await supabase
         .from("parking_settings")
         .update(dataToUpdate)
-        .eq("id", DEFAULT_SETTINGS_ID);
+        .eq("id", selectedParkingLotId);
 
       if (error) throw error;
       alert("Tarifas guardadas exitosamente");
@@ -119,10 +127,14 @@ export default function SettingsPage() {
         rate_van: rates.van,
       };
 
+      // Obtener el estacionamiento seleccionado del localStorage
+      const selectedParkingLotId =
+        localStorage.getItem("selectedParkingLotId") || DEFAULT_SETTINGS_ID;
+
       const { error } = await supabase
         .from("parking_settings")
         .update(dataToUpdate)
-        .eq("id", DEFAULT_SETTINGS_ID);
+        .eq("id", selectedParkingLotId);
 
       if (error) throw error;
 

@@ -296,7 +296,6 @@ export type Database = {
       }
       parking_spaces: {
         Row: {
-          company_id: string | null
           created_at: string
           id: string
           is_occupied: boolean | null
@@ -305,7 +304,6 @@ export type Database = {
           vehicle_type: string | null
         }
         Insert: {
-          company_id?: string | null
           created_at?: string
           id?: string
           is_occupied?: boolean | null
@@ -314,7 +312,6 @@ export type Database = {
           vehicle_type?: string | null
         }
         Update: {
-          company_id?: string | null
           created_at?: string
           id?: string
           is_occupied?: boolean | null
@@ -322,15 +319,7 @@ export type Database = {
           updated_at?: string
           vehicle_type?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "parking_spaces_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -364,14 +353,13 @@ export type Database = {
           entry_time: string
           exit_time: string | null
           id: string
-          parking_lot_id: string
+          parking_lot_id: string | null
           plate_number: string
           spot_number: string | null
-          status: Database["public"]["Enums"]["ticket_status"]
+          status: string
           ticket_number: string
           updated_at: string
-          user_full_name: string | null
-          vehicle_type: Database["public"]["Enums"]["vehicle_type"]
+          vehicle_type: string
         }
         Insert: {
           amount?: number | null
@@ -380,14 +368,13 @@ export type Database = {
           entry_time?: string
           exit_time?: string | null
           id?: string
-          parking_lot_id: string
+          parking_lot_id?: string | null
           plate_number: string
           spot_number?: string | null
-          status?: Database["public"]["Enums"]["ticket_status"]
+          status?: string
           ticket_number: string
           updated_at?: string
-          user_full_name?: string | null
-          vehicle_type?: Database["public"]["Enums"]["vehicle_type"]
+          vehicle_type?: string
         }
         Update: {
           amount?: number | null
@@ -396,22 +383,21 @@ export type Database = {
           entry_time?: string
           exit_time?: string | null
           id?: string
-          parking_lot_id?: string
+          parking_lot_id?: string | null
           plate_number?: string
           spot_number?: string | null
-          status?: Database["public"]["Enums"]["ticket_status"]
+          status?: string
           ticket_number?: string
           updated_at?: string
-          user_full_name?: string | null
-          vehicle_type?: Database["public"]["Enums"]["vehicle_type"]
+          vehicle_type?: string
         }
         Relationships: [
           {
-            foreignKeyName: "tickets_parking_lot_id_fkey"
-            columns: ["parking_lot_id"]
+            foreignKeyName: "tickets_spot_number_fkey"
+            columns: ["spot_number"]
             isOneToOne: false
-            referencedRelation: "parking_lots"
-            referencedColumns: ["id"]
+            referencedRelation: "parking_spaces"
+            referencedColumns: ["space_number"]
           },
         ]
       }
@@ -474,18 +460,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      has_role: {
-        Args: {
-          role: Database["public"]["Enums"]["app_role"]
-        }
-        Returns: boolean
-      }
+      has_role:
+        | {
+            Args: {
+              role: Database["public"]["Enums"]["app_role"]
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              role: string
+            }
+            Returns: boolean
+          }
     }
     Enums: {
       app_role: "admin" | "user"
-      ticket_status: "active" | "closed" | "cancelled"
       user_role: "admin" | "employee"
-      vehicle_type: "auto" | "moto" | "camioneta" | "otro"
     }
     CompositeTypes: {
       [_ in never]: never

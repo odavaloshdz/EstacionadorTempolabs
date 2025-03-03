@@ -12,9 +12,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import UserTable from "@/components/users/UserTable";
 import UserForm, { UserFormData } from "@/components/users/UserForm";
-import { UserProfile } from "@/types/auth";
+import { UserProfile, UserRole } from "@/types/auth";
 import { supabase } from "@/lib/supabase";
 import { usePermissions } from "@/hooks/usePermissions";
+import type { User } from "@supabase/supabase-js";
 
 export default function UsersPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -41,7 +42,9 @@ export default function UsersPage() {
 
       // Combine profile and auth data
       const usersWithEmail = (profiles || []).map((profile: any) => {
-        const authUser = authData?.users?.find((u) => u.id === profile.id);
+        const authUser = authData?.users?.find(
+          (u: User) => u.id === profile.id,
+        );
         return {
           id: profile.id,
           first_name: profile.first_name,

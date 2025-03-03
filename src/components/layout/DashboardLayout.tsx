@@ -3,8 +3,17 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { LayoutGrid, Settings, LogOut, Menu, X, Users } from "lucide-react";
+import {
+  LayoutGrid,
+  Settings,
+  LogOut,
+  Menu,
+  X,
+  Users,
+  Building2,
+} from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
+import ParkingLotSelector from "@/components/ParkingLotSelector";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -13,6 +22,7 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [selectedParkingLotId, setSelectedParkingLotId] = useState<string>();
   const { signOut, user } = useAuth();
   const { hasPermission } = usePermissions();
   const navigate = useNavigate();
@@ -28,6 +38,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       label: "Usuarios",
       href: "/dashboard/users",
     },
+    hasPermission("settings.view") && {
+      icon: Building2,
+      label: "Estacionamientos",
+      href: "/dashboard/parking-lots",
+    },
     {
       icon: Settings,
       label: "Configuración",
@@ -38,6 +53,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const handleSignOut = async () => {
     await signOut();
     navigate("/login");
+  };
+
+  const handleParkingLotChange = (parkingLotId: string) => {
+    setSelectedParkingLotId(parkingLotId);
+    // Aquí podríamos guardar la selección en localStorage o en un contexto global
+    localStorage.setItem("selectedParkingLotId", parkingLotId);
+    // Recargar los datos del dashboard
+    window.dispatchEvent(
+      new CustomEvent("parking-lot-changed", { detail: parkingLotId }),
+    );
   };
 
   return (
@@ -65,6 +90,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <Menu className="h-5 w-5" />
             </Button>
           </div>
+
+          {isSidebarOpen && (
+            <div className="px-4 py-2 border-b">
+              <ParkingLotSelector
+                onSelect={handleParkingLotChange}
+                selectedParkingLotId={selectedParkingLotId}
+              />
+            </div>
+          )}
 
           <nav className="flex-1 p-4 space-y-2">
             {menuItems.map(
@@ -122,6 +156,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Mobile menu */}
         {isMobileMenuOpen && (
           <div className="border-t p-4 bg-white space-y-2">
+            <div className="mb-4">
+              <ParkingLotSelector
+                onSelect={handleParkingLotChange}
+                selectedParkingLotId={selectedParkingLotId}
+              />
+            </div>
+
             {menuItems.map(
               (item) =>
                 item && (

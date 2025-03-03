@@ -31,9 +31,16 @@ export default function Home() {
   });
 
   const loadParkingSpaces = async () => {
+    // Obtener el estacionamiento seleccionado del localStorage
+    const selectedParkingLotId = localStorage.getItem("selectedParkingLotId");
+
     const { data: spaces, error } = await supabase
       .from("parking_spaces")
       .select("*")
+      .eq(
+        "parking_lot_id",
+        selectedParkingLotId || "00000000-0000-0000-0000-000000000000",
+      )
       .order("space_number");
 
     if (error) {
@@ -64,6 +71,13 @@ export default function Home() {
   useEffect(() => {
     loadParkingSpaces();
 
+    // Escuchar cambios de estacionamiento seleccionado
+    const handleParkingLotChange = () => {
+      loadParkingSpaces();
+    };
+
+    window.addEventListener("parking-lot-changed", handleParkingLotChange);
+
     const channel = supabase.channel("parking_spaces");
 
     channel
@@ -91,6 +105,7 @@ export default function Home() {
     return () => {
       channel.unsubscribe();
       authSubscription.unsubscribe();
+      window.removeEventListener("parking-lot-changed", handleParkingLotChange);
     };
   }, []);
 
@@ -117,6 +132,11 @@ export default function Home() {
 
         if (spaceError) throw spaceError;
 
+        // Obtener el estacionamiento seleccionado del localStorage
+        const selectedParkingLotId =
+          localStorage.getItem("selectedParkingLotId") ||
+          "00000000-0000-0000-0000-000000000000";
+
         const { error: ticketError } = await supabase.from("tickets").insert({
           ticket_number: ticketData.ticketNumber,
           entry_time: new Date().toISOString(),
@@ -125,7 +145,11 @@ export default function Home() {
           status: "active",
           vehicle_type: ticketData.vehicleInfo?.type || "auto",
           created_by: user?.email || "system",
-          parking_lot_id: "00000000-0000-0000-0000-000000000000",
+          parking_lot_id: selectedParkingLotId,
+          notes: ticketData.notes,
+          billing_type: ticketData.billingType,
+          promotional_rate: ticketData.promotionalRate,
+          leave_keys: ticketData.vehicleInfo?.leaveKeys || false,
         });
 
         if (ticketError) throw ticketError;

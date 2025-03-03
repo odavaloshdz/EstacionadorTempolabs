@@ -8,6 +8,7 @@ import Home from "@/components/home";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import SettingsPage from "@/pages/SettingsPage";
 import UsersPage from "@/pages/UsersPage";
+import ParkingLotsPage from "@/pages/ParkingLotsPage";
 import { useAuth } from "@/contexts/AuthContext";
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
@@ -55,6 +56,16 @@ const AppRoutes = () => (
         <PrivateRoute>
           <DashboardLayout>
             <UsersPage />
+          </DashboardLayout>
+        </PrivateRoute>
+      }
+    />
+    <Route
+      path="/dashboard/parking-lots"
+      element={
+        <PrivateRoute>
+          <DashboardLayout>
+            <ParkingLotsPage />
           </DashboardLayout>
         </PrivateRoute>
       }

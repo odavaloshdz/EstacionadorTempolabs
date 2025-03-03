@@ -17,11 +17,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Clock, CreditCard, Car, Calendar, Palette, Type } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import {
+  Clock,
+  CreditCard,
+  Car,
+  Calendar,
+  Palette,
+  Type,
+  FileText,
+  Key,
+} from "lucide-react";
 import { printTicket, printReceipt } from "@/lib/printService";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import type { TicketData, VehicleType } from "@/types/parking";
+import type { TicketData, VehicleType, BillingType } from "@/types/parking";
 
 interface TicketModalProps {
   open?: boolean;
@@ -47,6 +59,8 @@ const TicketModal = ({
     ticketNumber: "T-001",
     entryTime: new Date().toLocaleString(),
     licensePlate: "ABC-123",
+    billingType: "hourly" as BillingType,
+    parkingLotId: "00000000-0000-0000-0000-000000000000",
   },
   onSubmit = () => {},
 }: TicketModalProps) => {
@@ -56,6 +70,10 @@ const TicketModal = ({
     color: "",
     model: "",
     type: "auto" as VehicleType,
+    leaveKeys: false,
+    notes: "",
+    billingType: ticketData?.billingType || ("hourly" as BillingType),
+    promotionalRate: 0,
   });
 
   const calculateAmount = async (entryTime: string) => {
@@ -93,7 +111,12 @@ const TicketModal = ({
         color: formData.color || undefined,
         model: formData.model || undefined,
         type: formData.type,
+        leaveKeys: formData.leaveKeys,
       },
+      notes: formData.notes || undefined,
+      billingType: formData.billingType,
+      promotionalRate:
+        formData.promotionalRate > 0 ? formData.promotionalRate : undefined,
       createdBy: user?.email,
     };
 
@@ -223,6 +246,87 @@ const TicketModal = ({
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Tipo de Cobro</Label>
+                    <RadioGroup
+                      value={formData.billingType}
+                      onValueChange={(value) =>
+                        setFormData({
+                          ...formData,
+                          billingType: value as BillingType,
+                        })
+                      }
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="hourly" id="hourly" />
+                        <Label htmlFor="hourly">Por Hora</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="hotel" id="hotel" />
+                        <Label htmlFor="hotel">Hotel (Gratis)</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="free" id="free" />
+                        <Label htmlFor="free">Tiempo Libre</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                  {formData.billingType === "hourly" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="promotionalRate">
+                        Tarifa Promocional
+                      </Label>
+                      <div className="flex items-center space-x-2">
+                        <CreditCard className="w-4 h-4 text-muted-foreground" />
+                        <Input
+                          id="promotionalRate"
+                          type="number"
+                          placeholder="0.00"
+                          value={formData.promotionalRate}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              promotionalRate: parseFloat(e.target.value),
+                            })
+                          }
+                          min="0"
+                          step="0.5"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center space-x-2 py-2">
+                    <Switch
+                      id="leaveKeys"
+                      checked={formData.leaveKeys}
+                      onCheckedChange={(checked) =>
+                        setFormData({ ...formData, leaveKeys: checked })
+                      }
+                    />
+                    <div className="flex items-center space-x-2">
+                      <Key className="h-4 w-4 text-muted-foreground" />
+                      <Label htmlFor="leaveKeys">Dejar Llaves</Label>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="notes">Anotaciones</Label>
+                    <div className="flex items-center space-x-2">
+                      <FileText className="w-4 h-4 text-muted-foreground" />
+                      <Textarea
+                        id="notes"
+                        placeholder="Anotaciones adicionales..."
+                        value={formData.notes}
+                        onChange={(e) =>
+                          setFormData({ ...formData, notes: e.target.value })
+                        }
+                        className="min-h-[80px]"
+                      />
+                    </div>
                   </div>
                 </div>
               ) : (
