@@ -91,7 +91,11 @@ export default function SettingsPage() {
             console.error("Error inserting settings:", insertError);
           } else {
             console.log("Settings inserted successfully");
-            settings = defaultSettings;
+            settings = {
+              ...defaultSettings,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            };
           }
         }
       }
@@ -203,19 +207,39 @@ export default function SettingsPage() {
 
       if (spacesError) throw spacesError;
 
-      const newSpaces = Array(parkingLot.totalSpaces)
-        .fill(null)
-        .map((_, index) => ({
-          space_number: `A${(index + 1).toString().padStart(3, "0")}`,
-          is_occupied: false,
-          parking_lot_id: selectedParkingLotId,
-        }));
+      // Create spaces in batches to avoid payload size limits
+      const totalSpaces = parkingLot.totalSpaces;
+      const batchSize = 100;
+      const batches = Math.ceil(totalSpaces / batchSize);
 
-      const { error: insertError } = await supabase
-        .from("parking_spaces")
-        .insert(newSpaces);
+      console.log(`Creating ${totalSpaces} spaces in ${batches} batches`);
 
-      if (insertError) throw insertError;
+      for (let batch = 0; batch < batches; batch++) {
+        const start = batch * batchSize;
+        const end = Math.min(start + batchSize, totalSpaces);
+        const count = end - start;
+
+        console.log(
+          `Creating batch ${batch + 1}/${batches} with ${count} spaces`,
+        );
+
+        const batchSpaces = Array(count)
+          .fill(null)
+          .map((_, index) => ({
+            space_number: `A${(start + index + 1).toString().padStart(3, "0")}`,
+            is_occupied: false,
+            parking_lot_id: selectedParkingLotId,
+          }));
+
+        const { error: insertError } = await supabase
+          .from("parking_spaces")
+          .insert(batchSpaces);
+
+        if (insertError) {
+          console.error(`Error inserting batch ${batch + 1}:`, insertError);
+          throw insertError;
+        }
+      }
 
       toast({
         title: "Configuración guardada",

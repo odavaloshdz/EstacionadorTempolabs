@@ -19,6 +19,7 @@ interface ParkingData {
     availableSpaces: number;
     occupiedSpaces: number;
   };
+  loading?: boolean;
 }
 
 export default function Home() {
@@ -30,12 +31,19 @@ export default function Home() {
   const [parkingData, setParkingData] = useState<ParkingData>({
     spaces: [],
     stats: { totalSpaces: 0, availableSpaces: 0, occupiedSpaces: 0 },
+    loading: false,
   });
 
   const loadParkingSpaces = async () => {
     if (!selectedParkingLotId) return;
 
     console.log("Loading parking spaces for ID:", selectedParkingLotId);
+
+    // Show loading state
+    setParkingData((prev) => ({
+      ...prev,
+      loading: true,
+    }));
 
     try {
       // Primero verificamos si hay espacios para este estacionamiento
@@ -59,7 +67,7 @@ export default function Home() {
         console.log("Settings found:", settings, "Error:", settingsError);
 
         // Si no hay configuración, intentamos obtener datos del parking_lot directamente
-        let totalSpaces = 50;
+        let totalSpaces = 150; // Default to 150 spaces
         if (!settings && settingsError) {
           const { data: parkingLot } = await supabase
             .from("parking_lots")
@@ -68,37 +76,55 @@ export default function Home() {
             .single();
 
           if (parkingLot) {
-            totalSpaces = parkingLot.capacity || 50;
+            totalSpaces = parkingLot.capacity || 150;
           }
           console.log("Using parking lot capacity:", totalSpaces);
         } else if (settings) {
-          totalSpaces = settings.total_spaces || 50;
+          totalSpaces = settings.total_spaces || 150;
           console.log("Using settings total_spaces:", totalSpaces);
         }
 
-        // Crear espacios por defecto
-        const defaultSpaces = Array(totalSpaces)
-          .fill(null)
-          .map((_, index) => ({
-            space_number: `A${(index + 1).toString().padStart(3, "0")}`,
-            is_occupied: false,
-            parking_lot_id: selectedParkingLotId,
-            vehicle_type: null,
-          }));
+        // Ensure we have a reasonable number of spaces
+        totalSpaces = Math.max(10, Math.min(500, totalSpaces));
 
-        console.log("Creating default spaces:", defaultSpaces.length);
+        // Create spaces in batches to avoid payload size limits
+        const batchSize = 100;
+        const batches = Math.ceil(totalSpaces / batchSize);
 
-        const { error: insertError } = await supabase
-          .from("parking_spaces")
-          .insert(defaultSpaces);
+        console.log(`Creating ${totalSpaces} spaces in ${batches} batches`);
 
-        if (insertError) {
-          console.error("Error inserting spaces:", insertError);
-        } else {
-          console.log("Successfully created spaces");
-          // Volver a cargar los espacios
-          return loadParkingSpaces();
+        for (let batch = 0; batch < batches; batch++) {
+          const start = batch * batchSize;
+          const end = Math.min(start + batchSize, totalSpaces);
+          const count = end - start;
+
+          console.log(
+            `Creating batch ${batch + 1}/${batches} with ${count} spaces`,
+          );
+
+          const batchSpaces = Array(count)
+            .fill(null)
+            .map((_, index) => ({
+              space_number: `A${(start + index + 1).toString().padStart(3, "0")}`,
+              is_occupied: false,
+              vehicle_type: null,
+              parking_lot_id: selectedParkingLotId,
+            }));
+
+          const { error: insertError } = await supabase
+            .from("parking_spaces")
+            .insert(batchSpaces);
+
+          if (insertError) {
+            console.error(`Error inserting batch ${batch + 1}:`, insertError);
+          } else {
+            console.log(`Successfully created batch ${batch + 1}`);
+          }
         }
+
+        console.log("All spaces created, reloading...");
+        // Volver a cargar los espacios
+        return loadParkingSpaces();
       }
 
       if (error) {
@@ -124,6 +150,7 @@ export default function Home() {
             availableSpaces: formattedSpaces.length - occupiedCount,
             occupiedSpaces: occupiedCount,
           },
+          loading: false,
         });
       }
     } catch (error) {
@@ -139,6 +166,7 @@ export default function Home() {
       setParkingData({
         spaces: [],
         stats: { totalSpaces: 0, availableSpaces: 0, occupiedSpaces: 0 },
+        loading: false,
       });
     }
 
@@ -179,7 +207,20 @@ export default function Home() {
     setShowTicketModal(true);
   };
 
-  const handleTicketSubmit = async (ticketData: any) => {
+  const handleTicketSubmit = async (ticketData: {
+    ticketNumber: string;
+    entryTime: string;
+    exitTime?: string;
+    licensePlate: string;
+    billingType: string;
+    vehicleInfo?: {
+      type?: string;
+      leaveKeys?: boolean;
+    };
+    notes?: string;
+    promotionalRate?: number;
+    amount?: number;
+  }) => {
     if (!selectedSpace) return;
 
     try {
@@ -255,7 +296,7 @@ export default function Home() {
           vehicle_type: null,
           updated_at: new Date().toISOString(),
         })
-        .neq("space_number", "");
+        .eq("parking_lot_id", selectedParkingLotId);
 
       if (error) throw error;
 
@@ -306,7 +347,15 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="h-[calc(100%-20px)] md:h-[calc(100%-100px)]">
+          <div className="h-[calc(100%-20px)] md:h-[calc(100%-100px)] relative">
+            {parkingData.loading && (
+              <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
+                <div className="flex flex-col items-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-2"></div>
+                  <p className="text-gray-600">Cargando espacios...</p>
+                </div>
+              </div>
+            )}
             <ParkingLotConstructor
               spaces={parkingData.spaces}
               onSpaceClick={handleSpaceClick}

@@ -278,7 +278,7 @@ export default function ParkingLotsPage() {
                   </div>
                   <Badge
                     variant={
-                      parkingLot.status === "active" ? "success" : "destructive"
+                      parkingLot.status === "active" ? "default" : "destructive"
                     }
                   >
                     {parkingLot.status === "active" ? "Activo" : "Inactivo"}

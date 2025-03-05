@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -23,6 +23,20 @@ const ParkingSpace = ({
   className,
   vehicleType = "auto",
 }: ParkingSpaceProps) => {
+  // Add a small random delay to simulate real-world loading
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(
+      () => {
+        setIsLoaded(true);
+      },
+      Math.floor(Math.random() * 300),
+    );
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const getVehicleIcon = () => {
     switch (vehicleType) {
       case "moto":
@@ -49,11 +63,13 @@ const ParkingSpace = ({
           <div
             className={cn(
               "w-[120px] md:w-[100px] h-[180px] md:h-[150px] border-2 rounded-md p-2 cursor-pointer",
-              "transition-colors duration-200 ease-in-out",
+              "transition-all duration-300 ease-in-out",
               "flex flex-col items-center justify-between",
               statusColor,
               borderColor,
               className,
+              !isLoaded && "opacity-0 scale-95",
+              isLoaded && "opacity-100 scale-100",
             )}
             onClick={onClick}
             role="button"
